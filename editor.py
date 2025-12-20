@@ -4,6 +4,10 @@ from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVide
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+# Monkeypatch ANTIALIAS for MoviePy compatibility with Pillow 10+
+if not hasattr(Image, 'ANTIALIAS'):
+    Image.ANTIALIAS = Image.Resampling.LANCZOS
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class EditorEngine:
