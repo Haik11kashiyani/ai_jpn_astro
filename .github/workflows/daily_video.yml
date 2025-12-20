@@ -28,6 +28,7 @@ jobs:
     - name: Run Production Studio
       env:
         OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
         PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       run: |
         python main.py --rashi "Mesh (Aries)"

@@ -15,18 +15,45 @@ class DirectorAgent:
     The Director Agent converts a script into a Visual Screenplay.
     It decides the 'Mood' and selects specific, cinematic keywords for stock footage.
     Auto-discovers the best free model on OpenRouter.
+    Supports multiple API keys with automatic failover on rate limits.
     """
     
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-        if not self.api_key:
-            raise ValueError("OPENROUTER_API_KEY is missing!")
-            
+    def __init__(self, api_key: str = None, backup_key: str = None):
+        """Initialize with OpenRouter API Keys (primary + backup)."""
+        self.api_keys = []
+        
+        # Primary key
+        primary = api_key or os.getenv("OPENROUTER_API_KEY")
+        if primary:
+            self.api_keys.append(primary)
+        
+        # Backup key
+        backup = backup_key or os.getenv("OPENROUTER_API_KEY_BACKUP")
+        if backup:
+            self.api_keys.append(backup)
+        
+        if not self.api_keys:
+            raise ValueError("No OPENROUTER_API_KEY found!")
+        
+        self.current_key_index = 0
+        self._init_client()
+        self.models = self._get_best_free_models()
+
+    def _init_client(self):
+        """Initialize OpenAI client with current key."""
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=self.api_key,
+            api_key=self.api_keys[self.current_key_index],
         )
-        self.models = self._get_best_free_models()
+
+    def _switch_to_backup_key(self):
+        """Switch to backup key if available."""
+        if self.current_key_index < len(self.api_keys) - 1:
+            self.current_key_index += 1
+            logging.info(f"🎬 Director: Switching to backup key #{self.current_key_index + 1}")
+            self._init_client()
+            return True
+        return False
 
     def _get_best_free_models(self) -> list:
         """Discovers best free models on OpenRouter."""
@@ -109,26 +136,40 @@ class DirectorAgent:
         }}
         """
 
-        for model in self.models:
-            try:
-                logging.info(f"🎬 Director: Trying model {model}...")
-                response = self.client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    response_format={"type": "json_object"}
-                )
-                
-                return json.loads(response.choices[0].message.content)
-                
-            except Exception as e:
-                logging.warning(f"⚠️ Director model {model} failed: {e}")
-                continue
+        tried_backup = False
         
-        # Fallback visuals if all models fail
-        logging.error("❌ All Director models failed. Using fallback visuals.")
+        while True:
+            for model in self.models:
+                try:
+                    logging.info(f"🎬 Director: Trying model {model}...")
+                    response = self.client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        response_format={"type": "json_object"}
+                    )
+                    
+                    return json.loads(response.choices[0].message.content)
+                    
+                except Exception as e:
+                    error_str = str(e)
+                    logging.warning(f"⚠️ Director model {model} failed: {e}")
+                    
+                    # Check if it's a rate limit error (429)
+                    if "429" in error_str or "rate limit" in error_str.lower():
+                        if not tried_backup and self._switch_to_backup_key():
+                            logging.info("🔄 Rate limit hit! Retrying with backup key...")
+                            tried_backup = True
+                            break  # Restart model loop with new key
+                    continue
+            else:
+                # All models exhausted
+                break
+        
+        # Fallback visuals if all models and keys fail
+        logging.error("❌ All Director models/keys failed. Using fallback visuals.")
         return {
             "mood": "Peaceful",
             "scenes": {k: "Abstract golden particles slow motion" for k in sections}

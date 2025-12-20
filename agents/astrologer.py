@@ -16,22 +16,47 @@ class AstrologerAgent:
     """
     The Astrologer Agent uses LLMs to generate authentic Vedic Astrology content.
     It acts like a knowledgeable Shastri (Astrologer).
+    Supports multiple API keys with automatic failover on rate limits.
     """
     
-    def __init__(self, api_key: str = None):
-        """Initialize with OpenRouter API Key."""
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-        if not self.api_key:
-            raise ValueError("OPENROUTER_API_KEY is missing!")
-            
-        # Initialize OpenAI Client pointing to OpenRouter
+    def __init__(self, api_key: str = None, backup_key: str = None):
+        """Initialize with OpenRouter API Keys (primary + backup)."""
+        self.api_keys = []
+        
+        # Primary key
+        primary = api_key or os.getenv("OPENROUTER_API_KEY")
+        if primary:
+            self.api_keys.append(primary)
+        
+        # Backup key
+        backup = backup_key or os.getenv("OPENROUTER_API_KEY_BACKUP")
+        if backup:
+            self.api_keys.append(backup)
+        
+        if not self.api_keys:
+            raise ValueError("No OPENROUTER_API_KEY found!")
+        
+        logging.info(f"🔑 Loaded {len(self.api_keys)} API key(s)")
+        
+        self.current_key_index = 0
+        self._init_client()
+        self.models = self.get_best_free_models()
+
+    def _init_client(self):
+        """Initialize OpenAI client with current key."""
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=self.api_key,
+            api_key=self.api_keys[self.current_key_index],
         )
 
-        self.models = self.get_best_free_models()
-        self.current_model_index = 0
+    def _switch_to_backup_key(self):
+        """Switch to backup key if available."""
+        if self.current_key_index < len(self.api_keys) - 1:
+            self.current_key_index += 1
+            logging.info(f"🔄 Switching to backup key #{self.current_key_index + 1}")
+            self._init_client()
+            return True
+        return False
 
     def get_best_free_models(self) -> list:
         """
@@ -95,29 +120,45 @@ class AstrologerAgent:
             return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
 
     def _generate_script(self, rashi: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
-        """Helper to try models in rotation."""
+        """Helper to try models in rotation with key failover on rate limits."""
         errors = []
-        for model in self.models:
-            logging.info(f"🤖 Casting {period_type} chart using: {model}")
-            try:
-                response = self.client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    response_format={"type": "json_object"}
-                )
-                
-                raw_content = response.choices[0].message.content
-                return json.loads(raw_content)
-                
-            except Exception as e:
-                logging.warning(f"⚠️ Model {model} failed: {e}")
-                errors.append(f"{model}: {str(e)}")
-                continue # Try next model
+        tried_backup = False
         
-        logging.error(f"❌ All models failed: {errors}")
+        while True:
+            for model in self.models:
+                logging.info(f"🤖 Casting {period_type} chart using: {model}")
+                try:
+                    response = self.client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        response_format={"type": "json_object"}
+                    )
+                    
+                    raw_content = response.choices[0].message.content
+                    return json.loads(raw_content)
+                    
+                except Exception as e:
+                    error_str = str(e)
+                    logging.warning(f"⚠️ Model {model} failed: {e}")
+                    errors.append(f"{model}: {error_str}")
+                    
+                    # Check if it's a rate limit error (429)
+                    if "429" in error_str or "rate limit" in error_str.lower():
+                        # Try switching to backup key
+                        if not tried_backup and self._switch_to_backup_key():
+                            logging.info("🔄 Rate limit hit! Retrying with backup key...")
+                            tried_backup = True
+                            errors = []  # Reset errors for new key
+                            break  # Restart model loop with new key
+                    continue
+            else:
+                # All models exhausted for current key
+                break
+        
+        logging.error(f"❌ All models and keys exhausted: {errors}")
         raise Exception(f"All models failed to generate {period_type}. Errors: {errors}")
 
     def generate_daily_rashifal(self, rashi: str, date: str) -> dict:
