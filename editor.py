@@ -213,16 +213,14 @@ class EditorEngine:
         return final_clip
     
     def _generate_subtitle_clip(self, subtitle_path: str, duration: float) -> CompositeVideoClip:
-        """Generates dynamic subtitle clips from JSON with LARGE text."""
+        """Generates dynamic subtitle clips from JSON with LARGE text (no dark background)."""
         import json
         with open(subtitle_path, 'r', encoding='utf-8') as f:
             subs = json.load(f)
             
         text_clips = []
         
-        # Semi-transparent background bar for subtitles
-        bg_clip = ColorClip(size=(self.width, 350), color=(0,0,0), duration=duration)
-        bg_clip = bg_clip.set_opacity(0.7).set_position((0, self.height - 350))
+        # NO dark background - just text with stroke for visibility
         
         for sub in subs:
             word = sub['text']
@@ -234,8 +232,10 @@ class EditorEngine:
             clip = ImageClip(img_path).set_start(start).set_duration(dur)
             clip = clip.set_position(("center", self.height - 280))
             text_clips.append(clip)
-            
-        return CompositeVideoClip([bg_clip] + text_clips, size=(self.width, self.height))
+        
+        # Create transparent base
+        base = ColorClip(size=(self.width, self.height), color=(0,0,0), duration=duration).set_opacity(0)
+        return CompositeVideoClip([base] + text_clips, size=(self.width, self.height))
 
     def _render_text_pill(self, text: str) -> str:
         """Renders LARGE text snippet to image - for individual subtitle words."""
@@ -261,13 +261,12 @@ class EditorEngine:
         return temp_path
 
     def _generate_text_image(self, text: str) -> str:
-        """Helper to render Hindi text to image using PIL - LARGE SIZE for visibility."""
+        """Helper to render Hindi text to image using PIL - LARGE SIZE with stroke (no dark background)."""
         img_w, img_h = 1080, 500 
-        img = Image.new('RGBA', (img_w, img_h), (0, 0, 0, 0))
+        img = Image.new('RGBA', (img_w, img_h), (0, 0, 0, 0))  # Fully transparent
         draw = ImageDraw.Draw(img)
         
-        # Dark semi-transparent background
-        draw.rectangle([30, 30, img_w-30, img_h-30], fill=(0, 0, 0, 200))
+        # NO dark background - just text with stroke
         
         try:
             font = ImageFont.truetype(self.font_path, 72) # LARGER FONT SIZE

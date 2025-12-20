@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -13,6 +14,7 @@ class DirectorAgent:
     """
     The Director Agent converts a script into a Visual Screenplay.
     It decides the 'Mood' and selects specific, cinematic keywords for stock footage.
+    Auto-discovers the best free model on OpenRouter.
     """
     
     def __init__(self, api_key: str = None):
@@ -24,7 +26,43 @@ class DirectorAgent:
             base_url="https://openrouter.ai/api/v1",
             api_key=self.api_key,
         )
-        self.model = "google/gemini-2.0-flash-thinking-exp:free"
+        self.models = self._get_best_free_models()
+
+    def _get_best_free_models(self) -> list:
+        """Discovers best free models on OpenRouter."""
+        try:
+            logging.info("🎬 Director: Discovering best free models...")
+            response = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
+            if response.status_code != 200:
+                return ["google/gemini-2.0-flash-exp:free"]
+            
+            all_models = response.json().get("data", [])
+            free_models = []
+            
+            for m in all_models:
+                pricing = m.get("pricing", {})
+                if pricing.get("prompt") == "0" and pricing.get("completion") == "0":
+                    free_models.append(m["id"])
+            
+            # Score and rank
+            scored = []
+            for mid in free_models:
+                score = 0
+                ml = mid.lower()
+                if "gemini" in ml: score += 10
+                if "llama-3" in ml: score += 8
+                if "flash" in ml: score += 3
+                if "nano" in ml or "1b" in ml: score -= 20
+                scored.append((score, mid))
+            
+            scored.sort(key=lambda x: x[0], reverse=True)
+            best = [m[1] for m in scored[:3]]
+            logging.info(f"🎬 Director: Using models: {best}")
+            return best if best else ["google/gemini-2.0-flash-exp:free"]
+            
+        except Exception as e:
+            logging.warning(f"Model discovery failed: {e}")
+            return ["google/gemini-2.0-flash-exp:free"]
 
     def create_screenplay(self, script_data: dict) -> dict:
         """
@@ -71,22 +109,27 @@ class DirectorAgent:
         }}
         """
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
-            
-            return json.loads(response.choices[0].message.content)
-            
-        except Exception as e:
-            logging.error(f"❌ Director Visualization Failed: {e}")
-            # Fallback visuals
-            return {
-                "mood": "Peaceful",
-                "scenes": {k: "Abstract golden particles slow motion" for k in sections}
-            }
+        for model in self.models:
+            try:
+                logging.info(f"🎬 Director: Trying model {model}...")
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                
+                return json.loads(response.choices[0].message.content)
+                
+            except Exception as e:
+                logging.warning(f"⚠️ Director model {model} failed: {e}")
+                continue
+        
+        # Fallback visuals if all models fail
+        logging.error("❌ All Director models failed. Using fallback visuals.")
+        return {
+            "mood": "Peaceful",
+            "scenes": {k: "Abstract golden particles slow motion" for k in sections}
+        }
