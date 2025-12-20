@@ -29,7 +29,7 @@ class AstrologerAgent:
             base_url="https://openrouter.ai/api/v1",
             api_key=self.api_key,
         )
-        )
+
         self.models = self.get_best_free_models()
         self.current_model_index = 0
 
