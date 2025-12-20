@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import requests
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -28,7 +29,70 @@ class AstrologerAgent:
             base_url="https://openrouter.ai/api/v1",
             api_key=self.api_key,
         )
-        self.model = "google/gemini-2.0-flash-thinking-exp:free" # Using a capable model for Hindi
+        )
+        self.models = self.get_best_free_models()
+        self.current_model_index = 0
+
+    def get_best_free_models(self) -> list:
+        """
+        Fetches available models from OpenRouter, filters for free ones,
+        and ranks them based on heuristics (e.g. 'gemini', 'llama', '70b').
+        """
+        try:
+            logging.info("🔎 Discovering best free models on OpenRouter...")
+            response = requests.get("https://openrouter.ai/api/v1/models")
+            if response.status_code != 200:
+                logging.warning("⚠️ Failed to fetch models list. Using defaults.")
+                return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
+            
+            all_models = response.json().get("data", [])
+            free_models = []
+            
+            for m in all_models:
+                pricing = m.get("pricing", {})
+                if pricing.get("prompt") == "0" and pricing.get("completion") == "0":
+                    free_models.append(m["id"])
+            
+            # Smart Ranking Heuristics
+            # 1. Prefer 'gemini' (best for creative writing)
+            # 2. Prefer 'llama-3' (strong instruction following)
+            # 3. Prefer 'deepseek' (good reasoning)
+            # 4. Prefer larger models ('70b', 'flash')
+            # 5. Avoid tiny models ('nano', '1b', '3b')
+            
+            scored_models = []
+            for mid in free_models:
+                score = 0
+                mid_lower = mid.lower()
+                
+                if "gemini" in mid_lower: score += 10
+                if "llama-3" in mid_lower: score += 8
+                if "deepseek" in mid_lower: score += 7
+                if "phi-4" in mid_lower: score += 6
+                
+                if "flash" in mid_lower: score += 3
+                if "exp" in mid_lower: score += 2
+                if "70b" in mid_lower: score += 2
+                
+                if "nano" in mid_lower or "1b" in mid_lower or "3b" in mid_lower: score -= 20
+                
+                scored_models.append((score, mid))
+            
+            # Sort by score desc
+            scored_models.sort(key=lambda x: x[0], reverse=True)
+            
+            best_models = [m[1] for m in scored_models[:5]] # Take top 5
+            
+            logging.info(f"✅ Selected Top Free Models: {best_models}")
+            if not best_models:
+                 return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
+                 
+            return best_models
+            
+        except Exception as e:
+            logging.error(f"⚠️ Model discovery failed: {e}")
+            # Fallback hardcoded list
+            return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
 
     def generate_daily_rashifal(self, rashi: str, date: str) -> dict:
         """
@@ -68,22 +132,29 @@ class AstrologerAgent:
         }}
         """
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
-            
-            raw_content = response.choices[0].message.content
-            return json.loads(raw_content)
-            
-        except Exception as e:
-            logging.error(f"❌ Astrologer Prediction Failed: {e}")
-            return None
+        errors = []
+        for model in self.models:
+            logging.info(f"🤖 Casting chart using: {model}")
+            try:
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                
+                raw_content = response.choices[0].message.content
+                return json.loads(raw_content)
+                
+            except Exception as e:
+                logging.warning(f"⚠️ Model {model} failed: {e}")
+                errors.append(f"{model}: {str(e)}")
+                continue # Try next model
+        
+        logging.error(f"❌ All models failed: {errors}")
+        raise Exception(f"All models failed. Errors: {errors}")
 
 # Test Run (Uncomment to test)
 # if __name__ == "__main__":
