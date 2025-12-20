@@ -33,7 +33,7 @@ jobs:
         python main.py --rashi "Mesh (Aries)"
         
     - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: daily-rashifal-video
         path: outputs/*.mp4
