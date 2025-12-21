@@ -359,11 +359,35 @@ class EditorEngine:
         music_folder = os.path.join("assets", "music")
         if not os.path.exists(music_folder):
             os.makedirs(music_folder, exist_ok=True)
-            return None
+            self._ensure_music_assets(music_folder)
         
         all_music = [f for f in os.listdir(music_folder) if f.endswith(('.mp3', '.wav', '.m4a'))]
         if not all_music:
-            return None
+            self._ensure_music_assets(music_folder)
+            all_music = [f for f in os.listdir(music_folder) if f.endswith(('.mp3', '.wav', '.m4a'))]
+
+    def _ensure_music_assets(self, music_folder):
+        """Downloads default royalty-free music if folder is empty."""
+        logging.info("⬇️ Downloading default royalty-free music...")
+        
+        # Direct links to heavy-weight royalty free tracks (Kevin MacLeod / similar)
+        tracks = {
+            "peaceful_ambient.mp3": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Clean%20Soul.mp3",
+            "energetic_upbeat.mp3": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Life%20of%20Riley.mp3",
+            "mysterious_deep.mp3": "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Private%20Reflection.mp3"
+        }
+        
+        try:
+            import requests
+            for filename, url in tracks.items():
+                path = os.path.join(music_folder, filename)
+                if not os.path.exists(path):
+                    logging.info(f"   ⬇️ Fetching {filename}...")
+                    r = requests.get(url, timeout=30)
+                    with open(path, 'wb') as f:
+                        f.write(r.content)
+        except Exception as e:
+            logging.warning(f"   ⚠️ Could not download music: {e}")
             
         # Filter by mood
         mood_lower = mood.lower()
