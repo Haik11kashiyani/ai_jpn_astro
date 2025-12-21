@@ -358,11 +358,32 @@ class EditorEngine:
         
         music_folder = os.path.join("assets", "music")
         if not os.path.exists(music_folder):
+            os.makedirs(music_folder, exist_ok=True)
             return None
         
-        music_files = [f for f in os.listdir(music_folder) if f.endswith(('.mp3', '.wav', '.m4a'))]
+        all_music = [f for f in os.listdir(music_folder) if f.endswith(('.mp3', '.wav', '.m4a'))]
+        if not all_music:
+            return None
+            
+        # Filter by mood
+        mood_lower = mood.lower()
+        matching_music = [f for f in all_music if mood_lower in f.lower()]
         
-        if music_files:
-            return os.path.join(music_folder, random.choice(music_files))
+        # If no strict match, try broad categories
+        if not matching_music:
+            if "energetic" in mood_lower or "happy" in mood_lower:
+                matching_music = [f for f in all_music if "upbeat" in f.lower() or "fast" in f.lower()]
+            elif "peaceful" in mood_lower or "calm" in mood_lower:
+                matching_music = [f for f in all_music if "ambient" in f.lower() or "soft" in f.lower()]
+            elif "mysterious" in mood_lower:
+                matching_music = [f for f in all_music if "dark" in f.lower() or "slow" in f.lower()]
         
-        return None
+        # If still no match, pick random but prefer not 'intro' or 'outro' specific tracks if possible
+        if not matching_music:
+            logging.warning(f"   ⚠️ No specific music found for mood '{mood}', picking random.")
+            target_list = all_music
+        else:
+            target_list = matching_music
+            
+        selected = random.choice(target_list)
+        return os.path.join(music_folder, selected)
