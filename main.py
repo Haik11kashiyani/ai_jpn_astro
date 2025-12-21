@@ -42,63 +42,114 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     # Define order of sections to ensure flow
     priority_order = ["hook", "intro", "love", "career", "money", "health", "remedy", "lucky_color", "lucky_number", "lucky_dates", "lucky_months"]
     
-    # If script doesn't have standard sections, create one combined section
-    found_sections = [s for s in priority_order if s in script]
-    if not found_sections and isinstance(script, dict):
-        # Fallback: use all keys from script as sections
-        found_sections = list(script.keys())
-        print(f"   ⚠️ Using all script keys as sections: {found_sections}")
-
+    # Identify relevant sections from script
+    active_sections = []
     for section in priority_order + [k for k in script.keys() if k not in priority_order]:
-        if section not in script: 
-            continue
-        
+        if section in script and script[section] and len(str(script[section])) >= 5:
+            active_sections.append(section)
+
+    print(f"   📋 Processing {len(active_sections)} active sections...")
+    
+    # --- PHASE 1: GENERATE ALL AUDIO & MEASURE DURATION ---
+    section_audios = {} # {section: {path, duration, subtitle_path}}
+    total_duration = 0.0
+    
+    os.makedirs(f"assets/temp/{title_suffix}", exist_ok=True)
+    
+    for section in active_sections:
+        print(f"      🎤 Generating: {section.upper()}...")
         text = str(script[section])
-        if not text or len(text) < 5: 
-            continue
-        
-        print(f"\n   📍 Section: {section.upper()}")
-        print(f"      📜 Script: {text[:50]}...")
-        
-        # A. Generate Voiceover
-        os.makedirs(f"assets/temp/{title_suffix}", exist_ok=True)
         audio_path = f"assets/temp/{title_suffix}/{section}.mp3"
         subtitle_path = audio_path.replace(".mp3", ".json")
         
+        # Only generate if not exists (or always overwrite to be safe? let's overwrite for fresh speed settings)
         narrator.speak(text, audio_path)
         
-        if not os.path.exists(audio_path):
-            print("      ⚠️ Audio generation failed, skipping section.")
-            continue
-            
-        # B. Get Duration from Audio
-        try:
-            audio_clip = AudioFileClip(audio_path)
-            duration = audio_clip.duration + 0.3  # Small buffer
-        except Exception as e:
-            print(f"      ⚠️ Audio read error: {e}")
-            duration = 5.0
-            audio_clip = None
+        if os.path.exists(audio_path):
+            try:
+                clip = AudioFileClip(audio_path)
+                dur = clip.duration + 0.3 # Buffer
+                section_audios[section] = {
+                    "path": audio_path,
+                    "duration": dur,
+                    "subtitle_path": subtitle_path,
+                    "text": text,
+                    "audio_object": clip # Keep open? No, close and reopen later to save memory
+                }
+                clip.close() # Close file handle
+                total_duration += dur
+            except Exception as e:
+                print(f"         ⚠️ Audio read error for {section}: {e}")
+        else:
+            print(f"         ⚠️ Generation failed for {section}")
+
+    print(f"   ⏱️  Total Pre-Render Duration: {total_duration:.2f}s")
+
+    # --- PHASE 2: SMART TRIMMING (TARGET < 58s) ---
+    TARGET_DURATION = 58.0
+    if total_duration > TARGET_DURATION:
+        print(f"   ⚠️ Duration {total_duration:.2f}s > {TARGET_DURATION}s. Initiating SMART TRIMMING.")
         
-        # C. Load subtitle data for karaoke effect
+        # Strategy: Drop sections in this order of "least impact"
+        # 1. Intro (Generic filler)
+        # 2. Health (Usually steady)
+        # 3. Lucky Number (Low value standalone)
+        # 4. Lucky Color
+        # 5. Money (Rarely drop, but if must)
+        # NEVER DROP: Hook, Love, Career, Remedy
+        
+        drop_candidates = ["intro", "health", "lucky_number", "lucky_color", "money"]
+        
+        for candidate in drop_candidates:
+            if total_duration <= TARGET_DURATION:
+                break
+            
+            if candidate in section_audios:
+                dropped_dur = section_audios[candidate]["duration"]
+                print(f"      ✂️ Dropping '{candidate.upper()}' (-{dropped_dur:.2f}s)")
+                del section_audios[candidate] # Remove from map
+                # Remove from active_sections list to maintain order
+                if candidate in active_sections:
+                    active_sections.remove(candidate)
+                total_duration -= dropped_dur
+                
+        print(f"   ✅ New Duration: {total_duration:.2f}s")
+    
+    # --- PHASE 3: CREATE SCENES ---
+    for section in active_sections:
+        if section not in section_audios:
+            continue # Was dropped or failed
+            
+        data = section_audios[section]
+        audio_path = data["path"]
+        duration = data["duration"]
+        subtitle_path = data["subtitle_path"]
+        text = data["text"]
+        
+        print(f"\n   📍 Rendering Scene: {section.upper()} ({duration:.1f}s)")
+        
+        # Load subtitles
         subtitle_data = None
         if os.path.exists(subtitle_path):
             try:
                 with open(subtitle_path, 'r', encoding='utf-8') as f:
                     subtitle_data = json.load(f)
-                print(f"      🎤 Loaded {len(subtitle_data)} karaoke words")
-            except:
-                subtitle_data = None
-        
-        # D. Create Scene with Gradient Background + Rashi Image + Karaoke Text
+            except: pass
+            
+        # Create Scene
         clip = editor.create_scene(rashi, text, duration, subtitle_data=subtitle_data)
         
-        # E. Attach Audio
-        if audio_clip:
-            clip = clip.set_audio(audio_clip)
-        
-        scenes.append(clip)
-        print(f"      ✅ Scene created: {duration:.1f}s")
+        # Attach Audio
+        if clip:
+            try:
+                audio_clip = AudioFileClip(audio_path)
+                clip = clip.set_audio(audio_clip)
+                scenes.append(clip)
+                print(f"      ✅ Scene ready.")
+            except Exception as e:
+                print(f"      ❌ Audio attach error: {e}")
+        else:
+             print(f"      ❌ Scene render failed.")
         
     if not scenes:
         print("❌ No scenes created.")
