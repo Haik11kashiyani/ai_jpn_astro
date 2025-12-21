@@ -135,14 +135,22 @@ class DirectorAgent:
             logging.warning(f"Model discovery failed: {e}")
             return ["google/gemini-2.0-flash-exp:free"]
 
-    def create_screenplay(self, script_data: dict) -> dict:
+    def create_screenplay(self, script_data) -> dict:
         """
         Analyzes the horoscope script and generates a shot list.
+        Handles both dict and list script formats.
         """
         logging.info("🎬 Director: visualizing the script...")
         
         sections = ["intro", "love", "career", "money", "health", "remedy"]
-        full_script_text = " ".join([script_data.get(k, "") for k in sections])
+        
+        # Handle different input types
+        if isinstance(script_data, dict):
+            full_script_text = " ".join([str(script_data.get(k, "")) for k in sections])
+        elif isinstance(script_data, list):
+            full_script_text = " ".join([str(item) for item in script_data if item])
+        else:
+            full_script_text = str(script_data)
         
         system_prompt = """
         You are a Christopher Nolan-esque Film Director.
