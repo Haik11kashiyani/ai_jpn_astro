@@ -63,11 +63,31 @@ class EditorEngine:
     
     def __init__(self):
         self.width = 1080
+        self.width = 1080
         self.height = 1920
-        self.font_path = "c:/Windows/Fonts/nirmala.ttf"
+        self.font_path = "assets/fonts/NotoSansDevanagari-Bold.ttf"
+        
+        # Ensure font exists (Download if missing)
         if not os.path.exists(self.font_path):
-            self.font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Linux fallback
+            self._download_font()
+            
         os.makedirs("assets/temp", exist_ok=True)
+
+    def _download_font(self):
+        """Downloads Noto Sans Devanagari font for proper Hindi rendering."""
+        url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Bold.ttf"
+        os.makedirs("assets/fonts", exist_ok=True)
+        logging.info("⬇️ Downloading Hindi Font...")
+        try:
+            import requests
+            r = requests.get(url, allow_redirects=True)
+            with open(self.font_path, 'wb') as f:
+                f.write(r.content)
+            logging.info("✅ Font downloaded.")
+        except Exception as e:
+            logging.error(f"❌ Font download failed: {e}")
+            # Fallback
+            self.font_path = "arial.ttf"
 
     def _get_rashi_key(self, rashi_name: str) -> str:
         """Extract rashi key from name like 'Mesh (Aries)'."""
@@ -296,24 +316,28 @@ class EditorEngine:
         
         # Add background music
         bg_music_path = self._select_music_by_mood(mood)
-        if bg_music_path:
+        if bg_music_path and os.path.exists(bg_music_path):
             try:
                 bg_music = AudioFileClip(bg_music_path)
+                # Loop music if shorter than video
                 if bg_music.duration < final_video.duration:
                     bg_music = vfx.loop(bg_music, duration=final_video.duration)
                 else:
                     bg_music = bg_music.subclip(0, final_video.duration)
                 
-                bg_music = bg_music.volumex(0.12)  # Soft background
+                # Volume set to 20% (audible but not overpowering)
+                bg_music = bg_music.volumex(0.20)
                 
                 if final_video.audio:
                     final_audio = CompositeAudioClip([final_video.audio, bg_music])
                     final_video = final_video.set_audio(final_audio)
                 else:
                     final_video = final_video.set_audio(bg_music)
-                logging.info(f"   🎵 Background music added (mood: {mood})")
+                logging.info(f"   🎵 Background music added: {os.path.basename(bg_music_path)}")
             except Exception as e:
                 logging.error(f"   ⚠️ Music error: {e}")
+        else:
+            logging.warning("   ⚠️ No background music found.")
         
         # Write final video
         fps = 24
