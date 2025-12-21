@@ -228,7 +228,8 @@ class DirectorAgent:
         
         # Ultimate fallback visuals
         logging.error("❌ All Director models/keys/fallbacks failed. Using hardcoded visuals.")
+        sections_to_fill = sections + ["hook", "luck", "lucky_color", "lucky_number"]
         return {
             "mood": "Peaceful",
-            "scenes": {k: "Abstract golden particles slow motion" for k in sections}
+            "scenes": {k: "Abstract golden particles slow motion" for k in sections_to_fill}
         }
