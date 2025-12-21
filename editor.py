@@ -189,10 +189,13 @@ class EditorEngine:
         MAX_DURATION = 59.0
         if final_video.duration > MAX_DURATION:
             logging.warning(f"⚠️ Video duration {final_video.duration}s exceeds {MAX_DURATION}s. Trimming...")
-            # We trim from the end (preserving hook/intro)
+            # Trim to absolute max
             final_video = final_video.subclip(0, MAX_DURATION)
-            # Add a quick fade out at the end so it doesn't cut abruptly
-            final_video = final_video.fadeout(0.5)
+            # Short fadeout only at the very end
+            final_video = final_video.fadeout(0.2)
+        else:
+            # If within limits, minimal padding to ensure audio finish, just in case
+            pass
         # ------------------------------ 
         
         # Add background music

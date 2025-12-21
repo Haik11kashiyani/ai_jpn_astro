@@ -30,8 +30,13 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
         print(f"   📋 Script keys: {list(script.keys())}")
     elif isinstance(script, list):
         print(f"   📋 Script has {len(script)} items")
-        # Convert list to dict if needed
-        script = {"content": " ".join(str(s) for s in script)}
+        # Check if it's a list containing a single dict (common LLM behavior)
+        if len(script) == 1 and isinstance(script[0], dict):
+            print("   ✅ Unwrapping single-item list -> dict")
+            script = script[0]
+        else:
+            # Fallback: Convert list to text if it's multiple items or strings
+            script = {"content": " ".join(str(s) for s in script)}
     
     # Use Director to analyze script and get mood for music
     print(f"   🎬 Director analyzing content mood...")
@@ -59,6 +64,13 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     for section in active_sections:
         print(f"      🎤 Generating: {section.upper()}...")
         text = str(script[section])
+        
+        # Validate that text isn't a stringified dict/list (Defensive Check)
+        text_stripped = text.strip()
+        if (text_stripped.startswith("{") and "}" in text_stripped) or (text_stripped.startswith("[") and "]" in text_stripped):
+             print(f"         ⚠️ WARNING: Section '{section}' appears to be a raw object. Skipping to prevent glitch.")
+             continue
+             
         audio_path = f"assets/temp/{title_suffix}/{section}.mp3"
         subtitle_path = audio_path.replace(".mp3", ".json")
         
