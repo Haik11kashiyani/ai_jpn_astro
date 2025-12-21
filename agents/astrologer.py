@@ -45,7 +45,7 @@ class AstrologerAgent:
         self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
             genai.configure(api_key=self.google_ai_key)
-            self.google_model = genai.GenerativeModel('gemini-1.5-flash')
+            self.google_model = genai.GenerativeModel('gemini-2.0-flash-exp')
             logging.info("🌟 Google AI Studio (Gemini) fallback enabled")
         else:
             self.google_model = None
