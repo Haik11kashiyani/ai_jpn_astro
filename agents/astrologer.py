@@ -42,7 +42,7 @@ class AstrologerAgent:
             self.api_keys.append(backup)
         
         # Google AI key (fallback)
-        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
+        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY") or "AIzaSyDw8nEeFSWIajWJIL43u8Dt7UT5jJS_FuA"
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
             genai.configure(api_key=self.google_ai_key)
             self.google_model = genai.GenerativeModel('gemini-2.0-flash-exp')
@@ -211,33 +211,8 @@ class AstrologerAgent:
         if google_result:
             return google_result
         
-        # ABSOLUTE SAFETY NET: Return Mock Data so pipeline doesn't crash during testing
-        logging.error(f"❌ All models, keys, and fallbacks exhausted. switch to MOCK MODE.")
-        return self._get_mock_data(rashi, period_type)
-
-    def _get_mock_data(self, rashi, period_type):
-        """Returns safe, pre-written content to allow testing when APIs are down."""
-        logging.warning(f"⚠️ RETURNING MOCK DATA FOR {rashi} ({period_type})")
-        
-        if period_type == "Daily":
-            return {
-                "hook": f"{rashi} वालों, आज किस्मत का सितारा चमकेगा या बादलों में छिपेगा? {rashi} आज का राशिफल!",
-                "intro": "आज चंद्रमा की स्थिति आपके लिए नए अवसर ला रही है। ग्रहीय गोचर आपके पक्ष में संकेत दे रहे हैं।",
-                "love": "प्रेम संबंधों में आज मिठास बनी रहेगी। पुराने मतभेद सुलझने के आसार हैं।",
-                "career": "कार्यक्षेत्र में आपको नई जिम्मेदारियां मिल सकती हैं। सहकर्मियों का पूरा सहयोग मिलेगा।",
-                "money": "आर्थिक स्थिति सामान्य रहेगी। फिजूलखर्ची से बचें और निवेश सोच-समझकर करें।",
-                "health": "सेहत का ध्यान रखें, खासकर बदलते मौसम में। योग और ध्यान से लाभ होगा।",
-                "remedy": "आज हनुमान चालीसा का पाठ करें और लाल वस्तु का दान करें।",
-                "lucky_color": "लाल (Red)",
-                "lucky_number": "9"
-            }
-        # Add basic mocks for others if needed, sticking to Daily for now as it's the critical loop
-        return {
-            "hook": "Mock Data generated due to API Rate Limits.",
-            "intro": "Systems are currently offline, please check API quotas.",
-            "love": "Unavailable.", "career": "Unavailable.", "money": "Unavailable.",
-            "health": "Unavailable.", "remedy": "Check logs.", "lucky_date": "N/A"
-        }
+        logging.error(f"❌ All models, keys, and fallbacks exhausted: {errors}")
+        raise Exception(f"All models failed to generate {period_type}. Errors: {errors}")
 
     def generate_daily_rashifal(self, rashi: str, date: str) -> dict:
         """Generates Daily Horoscope."""

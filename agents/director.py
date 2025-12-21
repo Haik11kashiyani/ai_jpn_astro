@@ -41,7 +41,7 @@ class DirectorAgent:
             self.api_keys.append(backup)
         
         # Google AI key (fallback)
-        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
+        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY") or "AIzaSyDw8nEeFSWIajWJIL43u8Dt7UT5jJS_FuA"
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
             genai.configure(api_key=self.google_ai_key)
             self.google_model = genai.GenerativeModel('gemini-2.0-flash-exp')
@@ -228,8 +228,7 @@ class DirectorAgent:
         
         # Ultimate fallback visuals
         logging.error("❌ All Director models/keys/fallbacks failed. Using hardcoded visuals.")
-        sections_to_fill = sections + ["hook", "luck", "lucky_color", "lucky_number"]
         return {
             "mood": "Peaceful",
-            "scenes": {k: "Abstract golden particles slow motion" for k in sections_to_fill}
+            "scenes": {k: "Abstract golden particles slow motion" for k in sections}
         }
