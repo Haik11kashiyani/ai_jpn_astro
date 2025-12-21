@@ -24,6 +24,7 @@ jobs:
         # Fix for MoviePy ImageMagick policy
         sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml
         pip install -r requirements.txt
+        playwright install chromium
         
     - name: Run Production Studio
       env:
