@@ -14,7 +14,7 @@ from moviepy.editor import AudioFileClip
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
+def produce_video_from_script(agents, rashi, title_suffix, script, date_str, theme_override=None):
     """
     Orchestrates the production of a single video from a script.
     Uses gradient Rashi-themed backgrounds with karaoke text (no Pexels API).
@@ -240,7 +240,7 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
         # Create Scene (Clean Rashi Name for Display)
         # "Mesh (Aries)" -> "Mesh"
         clean_rashi_name = rashi.split('(')[0].strip()
-        clip = editor.create_scene(clean_rashi_name, text, duration, subtitle_data=subtitle_data)
+        clip = editor.create_scene(clean_rashi_name, text, duration, subtitle_data=subtitle_data, theme_override=theme_override)
         
         # Attach Audio
         if clip:
@@ -286,11 +286,20 @@ def main():
     month_year = today.strftime("%B %Y")
     year_str = today.strftime("%Y")
     
+    # --- Rashi Index for Drip Scheduling ---
+    # 1=Mesh, 2=Vrushabh, ... 12=Meen
+    RASHI_ORDER = ["mesh", "vrushabh", "mithun", "kark", "singh", "kanya", "tula", "vrushchik", "dhanu", "makar", "kumbh", "meen"]
+    rashi_key_clean = args.rashi.split('(')[0].strip().lower()
+    try:
+        rashi_idx = RASHI_ORDER.index(rashi_key_clean) + 1 # 1-based
+    except ValueError:
+        rashi_idx = 1 # Fallback
+        
     print("\n" + "="*60)
     print(f"🌟 YT JYOTISH RAHASYA: Automation Engine 🌟")
-    print(f"   Target: {args.rashi}")
+    print(f"   Target: {args.rashi} (Index: {rashi_idx})")
     print(f"   Date: {date_str}")
-    print(f"   Style: Gradient Theme + Karaoke Text")
+    print(f"   Style: Dynamic Color Theme + Karaoke Text")
     print("="*60 + "\n")
     
     # --- 1. DAILY VIDEO (Always Run) ---
@@ -298,12 +307,26 @@ def main():
     try:
         print("🔮 Generating DAILY Horoscope...")
         daily_script = agents['astrologer'].generate_daily_rashifal(args.rashi, date_str)
+        
+        # EXTRACT LUCKY COLOR FOR THEME
+        # We want the video background to match the Lucky Color of the day!
+        theme_color = None
+        if "lucky_color" in daily_script:
+            l_text = str(daily_script["lucky_color"]).lower()
+            # Simple keyword search
+            valid_colors = ["red", "blue", "green", "yellow", "white", "black", "pink", "orange", "purple", "brown", "gold", "silver"]
+            for c in valid_colors:
+                if c in l_text:
+                    theme_color = c
+                    break
+        
         produce_video_from_script(
             agents, 
             args.rashi, 
             f"Daily_{today.strftime('%Y%m%d')}", 
             daily_script, 
-            date_str
+            date_str,
+            theme_override=theme_color
         )
         daily_success = True
     except Exception as e:
@@ -311,10 +334,11 @@ def main():
         import traceback
         traceback.print_exc()
 
-    # --- 2. MONTHLY VIDEO (Run on 1st of Month) ---
-    if today.day == 1: 
+    # --- 2. MONTHLY VIDEO (Drip Schedule: Day X = Rashi X) ---
+    # User Request: "1 for one rashi ... next day next rashi"
+    if today.day == rashi_idx: 
         try:
-            print(f"\n📅 It is the 1st! Generating MONTHLY Horoscope for {month_year}...")
+            print(f"\n📅 It is Day {today.day}! Generating MONTHLY Horoscope for {args.rashi}...")
             monthly_script = agents['astrologer'].generate_monthly_forecast(args.rashi, month_year)
             produce_video_from_script(
                 agents,
@@ -322,14 +346,15 @@ def main():
                 f"Monthly_{today.strftime('%B_%Y')}",
                 monthly_script,
                 month_year
+                # No specific color theme for monthly, or use default Rashi theme
             )
         except Exception as e:
             print(f"❌ Monthly Video Failed: {e}")
 
-    # --- 3. YEARLY VIDEO (Run on Jan 1st) ---
-    if today.day == 1 and today.month == 1:
+    # --- 3. YEARLY VIDEO (Drip Schedule: Jan X = Rashi X) ---
+    if today.month == 1 and today.day == rashi_idx:
         try:
-            print(f"\n🎆 HAPPY NEW YEAR! Generating YEARLY Horoscope for {year_str}...")
+            print(f"\n🎆 HAPPY NEW YEAR! It is Jan {today.day}! Generating YEARLY Horoscope for {args.rashi}...")
             yearly_script = agents['astrologer'].generate_yearly_forecast(args.rashi, year_str)
             produce_video_from_script(
                 agents,

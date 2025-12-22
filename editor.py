@@ -64,6 +64,22 @@ RASHI_STYLES = {
     "pisces":    {"grad": ("#002025", "#006064", "#1de9b6"), "glow": "#64ffda", "element": "water"},
 }
 
+# Dynamic Lucky Color Themes (Overrides Rashi defaults)
+COLOR_STYLES = {
+    "red":    {"grad": ("#2b0505", "#8a0a0a", "#ff5252"), "glow": "#ff0000", "element": "fire"},
+    "blue":   {"grad": ("#050a2b", "#0a2a8a", "#52b6ff"), "glow": "#00bfff", "element": "water"},
+    "green":  {"grad": ("#052b0a", "#0a8a1a", "#52ff70"), "glow": "#00ff00", "element": "earth"},
+    "yellow": {"grad": ("#2b2005", "#8a6a0a", "#ffeb3b"), "glow": "#ffd700", "element": "air"},
+    "white":  {"grad": ("#202020", "#808080", "#ffffff"), "glow": "#ffffff", "element": "air"},
+    "black":  {"grad": ("#000000", "#202020", "#404040"), "glow": "#808080", "element": "earth"},
+    "pink":   {"grad": ("#2b0515", "#8a0a4a", "#ff52a2"), "glow": "#ff69b4", "element": "fire"},
+    "orange": {"grad": ("#2b1505", "#8a450a", "#ff9552"), "glow": "#ffa500", "element": "fire"},
+    "purple": {"grad": ("#15052b", "#4a0a8a", "#a252ff"), "glow": "#800080", "element": "air"},
+    "brown":  {"grad": ("#1a1005", "#4e342e", "#8d6e63"), "glow": "#a1887f", "element": "earth"},
+    "gold":   {"grad": ("#2b2005", "#8a6a0a", "#ffd700"), "glow": "#ffd700", "element": "fire"},
+    "silver": {"grad": ("#101520", "#546e7a", "#cfd8dc"), "glow": "#b0bec5", "element": "water"},
+}
+
 class EditorEngine:
     """
     Premium HYBRID Video Engine.
@@ -96,7 +112,7 @@ class EditorEngine:
                 return os.path.abspath(path) # Must be absolute for HTML
         return None
 
-    async def _render_html_scene(self, rashi_name, text, duration, subtitle_data):
+    async def _render_html_scene(self, rashi_name, text, duration, subtitle_data, theme_override=None):
         """
         Renders the scene using Playwright.
         Captures screenshots at 30 FPS.
@@ -110,8 +126,14 @@ class EditorEngine:
         rashi_img = self.get_rashi_image_path(rashi_name) or ""
         rashi_key = self._get_rashi_key(rashi_name)
         
-        # Get style from new map
-        style = RASHI_STYLES.get(rashi_key)
+        # Get style: COLOR_THEME > RASHI_STYLES > Fallback
+        style = None
+        if theme_override and theme_override in COLOR_STYLES:
+            style = COLOR_STYLES[theme_override]
+        
+        if not style:
+             style = RASHI_STYLES.get(rashi_key)
+             
         if not style:
              # Fallback
              style = {"grad": ("#303060", "#202040", "#101020"), "glow": "#ffffff", "element": "neutral"}
@@ -178,10 +200,10 @@ class EditorEngine:
             
         return frames
 
-    def create_scene(self, rashi_name: str, text: str, duration: float, subtitle_data: list = None):
+    def create_scene(self, rashi_name: str, text: str, duration: float, subtitle_data: list = None, theme_override: str = None):
         """Wrapper to run async render synchronously."""
         try:
-            frames = asyncio.run(self._render_html_scene(rashi_name, text, duration, subtitle_data))
+            frames = asyncio.run(self._render_html_scene(rashi_name, text, duration, subtitle_data, theme_override))
             
             if not frames:
                 raise Exception("No frames captured")
