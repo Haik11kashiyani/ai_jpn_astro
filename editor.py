@@ -98,21 +98,50 @@ class EditorEngine:
         rashi_key = rashi_name.lower().split()[0].split("(")[0].strip()
         return rashi_key
 
-    def get_rashi_image_path(self, rashi_name: str) -> str:
-        """Finds the appropriate rashi image from the 12_photos folder."""
+    def get_rashi_image_path(self, rashi_name: str, period_type: str = "Daily") -> str:
+        """
+        Finds the appropriate rashi image based on Period Type.
+        - Daily -> assets/12_photos
+        - Monthly -> assets/monthly_12_photos
+        - Yearly -> assets/yearly_12_photos
+        """
         rashi_key = self._get_rashi_key(rashi_name)
         if "(" in rashi_name:
             alt_key = rashi_name.split("(")[1].replace(")", "").strip().lower()
         else:
             alt_key = rashi_key
+            
         filename = RASHI_IMAGE_MAP.get(rashi_key) or RASHI_IMAGE_MAP.get(alt_key)
+        
         if filename:
-            path = os.path.join("assets", "12_photos", filename)
-            if os.path.exists(path):
-                return os.path.abspath(path) # Must be absolute for HTML
+            # Determine Folder
+            folder_map = {
+                "Daily": "12_photos",
+                "Monthly": "monthly_12_photos",
+                "Yearly": "yearly_12_photos"
+            }
+            target_folder = folder_map.get(period_type, "12_photos")
+            
+            # Remove extension from map value if present, just to be safe (though we can just use basename)
+            base_name = os.path.splitext(filename)[0]
+            
+            possible_exts = [".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"]
+            
+            # Check specific folder first
+            for ext in possible_exts:
+                path = os.path.join("assets", target_folder, base_name + ext)
+                if os.path.exists(path):
+                    return os.path.abspath(path)
+
+            # Fallback to Daily (12_photos) if specific not found
+            for ext in possible_exts:
+                fallback_path = os.path.join("assets", "12_photos", base_name + ext)
+                if os.path.exists(fallback_path):
+                    return os.path.abspath(fallback_path)
+                
         return None
 
-    async def _render_html_scene(self, rashi_name, text, duration, subtitle_data, theme_override=None):
+    async def _render_html_scene(self, rashi_name, text, duration, subtitle_data, theme_override=None, header_text="", period_type="Daily"):
         """
         Renders the scene using Playwright.
         Captures screenshots at 30 FPS.
@@ -122,8 +151,7 @@ class EditorEngine:
         
         # Prepare params
         # rashi_name comes in as "Mesh" (cleaned) or "Mesh (Aries)"
-        # We need to find the image for it.
-        rashi_img = self.get_rashi_image_path(rashi_name) or ""
+        rashi_img = self.get_rashi_image_path(rashi_name, period_type) or ""
         rashi_key = self._get_rashi_key(rashi_name)
         
         # Get style: COLOR_THEME > RASHI_STYLES > Fallback
@@ -152,8 +180,9 @@ class EditorEngine:
         # Ensure text is properly encoded
         import urllib.parse
         encoded_text = urllib.parse.quote(text)
+        encoded_header = urllib.parse.quote(header_text)
         
-        url = (f"file:///{self.template_path.replace(os.sep, '/')}?text={encoded_text}&img={rashi_img_url}"
+        url = (f"file:///{self.template_path.replace(os.sep, '/')}?text={encoded_text}&header={encoded_header}&img={rashi_img_url}"
                f"&c1={grad[0].replace('#', '%23')}&c2={grad[1].replace('#', '%23')}&c3={grad[2].replace('#', '%23')}"
                f"&glow={glow.replace('#', '%23')}&elem={element}")
         
@@ -166,6 +195,7 @@ class EditorEngine:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page(viewport={"width": 1080, "height": 1920})
+            
             
             await page.goto(url)
             # Wait for text to actually appear
@@ -200,10 +230,10 @@ class EditorEngine:
             
         return frames
 
-    def create_scene(self, rashi_name: str, text: str, duration: float, subtitle_data: list = None, theme_override: str = None):
+    def create_scene(self, rashi_name: str, text: str, duration: float, subtitle_data: list = None, theme_override: str = None, header_text: str = "", period_type: str = "Daily"):
         """Wrapper to run async render synchronously."""
         try:
-            frames = asyncio.run(self._render_html_scene(rashi_name, text, duration, subtitle_data, theme_override))
+            frames = asyncio.run(self._render_html_scene(rashi_name, text, duration, subtitle_data, theme_override, header_text, period_type))
             
             if not frames:
                 raise Exception("No frames captured")

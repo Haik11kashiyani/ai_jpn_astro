@@ -92,8 +92,11 @@
 
         #rashi-image {
             width: 100%;
-            height: auto;
-            max-height: 100%;
+            height: 100%;
+            /* Strict cropping rules for wide/tall images */
+            object-fit: cover;
+            object-position: center center;
+
             /* Cleaner, Sophisticated Look: No crazy glow. Just clean shadow + subtle border. */
             filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.6));
             border-radius: 50%;
@@ -179,6 +182,11 @@
     <div id="accent-light"></div>
     <div id="particles"></div>
 
+    <!-- New Header -->
+    <div id="header-container">
+        <!-- Injected Header Text -->
+    </div>
+
     <div id="rashi-container">
         <!-- New Aura Ring -->
         <div class="aura-circle"></div>
@@ -194,6 +202,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const rashiImg = urlParams.get('img');
         const text = urlParams.get('text') || "";
+        const headerText = urlParams.get('header') || ""; // New Param
         const c1 = urlParams.get('c1') || "#303060";
         const c2 = urlParams.get('c2') || "#202040";
         const c3 = urlParams.get('c3') || "#101020";
@@ -202,6 +211,7 @@
 
         // --- SETUP ---
         if (rashiImg) document.getElementById('rashi-image').src = rashiImg;
+        if (headerText) document.getElementById('header-container').innerText = headerText;
 
         // Set CSS Variables
         document.body.style.setProperty('--c1', c1);

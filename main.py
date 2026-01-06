@@ -8,21 +8,45 @@ from datetime import datetime
 from agents.astrologer import AstrologerAgent
 from agents.director import DirectorAgent
 from agents.narrator import NarratorAgent
+from agents.uploader import YouTubeUploader
 from editor import EditorEngine
 from moviepy.editor import AudioFileClip
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-def produce_video_from_script(agents, rashi, title_suffix, script, date_str, theme_override=None):
+# --- HELPER: HINDI DATE FORMATTER ---
+def get_hindi_date_str(date_obj):
+    months_map = {
+        "January": "जनवरी", "February": "फरवरी", "March": "मार्च", "April": "अप्रैल", 
+        "May": "मई", "June": "जून", "July": "जुलाई", "August": "अगस्त", 
+        "September": "सितंबर", "October": "अक्टूबर", "November": "नवंबर", "December": "दिसंबर"
+    }
+    en_month = date_obj.strftime("%B")
+    hi_month = months_map.get(en_month, en_month)
+    return f"{date_obj.day} {hi_month} {date_obj.year}"
+
+def get_hindi_month_str(date_obj):
+    months_map = {
+        "January": "जनवरी", "February": "फरवरी", "March": "मार्च", "April": "अप्रैल", 
+        "May": "मई", "June": "जून", "July": "जुलाई", "August": "अगस्त", 
+        "September": "सितंबर", "October": "अक्टूबर", "November": "नवंबर", "December": "दिसंबर"
+    }
+    en_month = date_obj.strftime("%B")
+    hi_month = months_map.get(en_month, en_month)
+    return f"{hi_month} {date_obj.year}"
+
+def produce_video_from_script(agents, rashi, title_suffix, script, date_str, theme_override=None, period_type="Daily", header_text=""):
     """
     Orchestrates the production of a single video from a script.
     Uses gradient Rashi-themed backgrounds with karaoke text (no Pexels API).
     """
     narrator, editor, director = agents['narrator'], agents['editor'], agents['director']
     
-    print(f"\n🎬 STARTING PRODUCTION: {title_suffix}...")
+    print(f"\n🎬 STARTING PRODUCTION: {title_suffix} ({header_text})...")
     scenes = []
+    
+    # ... [Rest of logic same as before, until create_scene call] ...
     
     # Debug: Show what script format we received
     print(f"   📋 Script type: {type(script).__name__}")
@@ -84,7 +108,7 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str, the
     rashi_hindi = RASHI_HINDI_MAP.get(rashi_key, rashi_key)
     
     for section in active_sections:
-        print(f"      🎤 Generating: {section.upper()}...")
+        # print(f"      🎤 Generating: {section.upper()}...")
         original_text = str(script[section])
         
         # --- LOCALIZATION & CLEANUP ---
@@ -186,8 +210,12 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str, the
 
     print(f"   ⏱️  Total Pre-Render Duration: {total_duration:.2f}s")
 
-    # --- PHASE 2: SMART TRIMMING (TARGET < 58s) ---
-    TARGET_DURATION = 58.0
+    # --- PHASE 2: SMART TRIMMING (Target based on type) ---
+    if period_type == "Daily":
+        TARGET_DURATION = 58.0
+    else:
+        TARGET_DURATION = 600.0 # 10 mins for Detailed/Remedy/Monthly
+
     if total_duration > TARGET_DURATION:
         print(f"   ⚠️ Duration {total_duration:.2f}s > {TARGET_DURATION}s. Initiating SMART TRIMMING.")
         
@@ -240,7 +268,15 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str, the
         # Create Scene (Clean Rashi Name for Display)
         # "Mesh (Aries)" -> "Mesh"
         clean_rashi_name = rashi.split('(')[0].strip()
-        clip = editor.create_scene(clean_rashi_name, text, duration, subtitle_data=subtitle_data, theme_override=theme_override)
+        clip = editor.create_scene(
+            clean_rashi_name, 
+            text, 
+            duration, 
+            subtitle_data=subtitle_data, 
+            theme_override=theme_override,
+            header_text=header_text,     # Pass New Header
+            period_type=period_type      # Pass Period Context for Image Selection
+        )
         
         # Attach Audio
         if clip:
@@ -271,6 +307,8 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str, the
 def main():
     parser = argparse.ArgumentParser(description="AI Video Studio Orchestrator")
     parser.add_argument("--rashi", type=str, default="Mesh (Aries)", help="Target Rashi")
+    parser.add_argument("--type", type=str, default="shorts", choices=["shorts", "detailed"], help="Video Type: shorts (Morning) or detailed (Evening)")
+    parser.add_argument("--upload", action="store_true", help="Upload to YouTube after generation")
     args = parser.parse_args()
     
     # Initialize Agents (No StockFetcher needed anymore!)
@@ -278,7 +316,8 @@ def main():
         'astrologer': AstrologerAgent(),
         'director': DirectorAgent(),
         'narrator': NarratorAgent(),
-        'editor': EditorEngine()
+        'editor': EditorEngine(),
+        'uploader': YouTubeUploader()
     }
     
     today = datetime.now()
@@ -287,7 +326,6 @@ def main():
     year_str = today.strftime("%Y")
     
     # --- Rashi Index for Drip Scheduling ---
-    # 1=Mesh, 2=Vrushabh, ... 12=Meen
     RASHI_ORDER = ["mesh", "vrushabh", "mithun", "kark", "singh", "kanya", "tula", "vrushchik", "dhanu", "makar", "kumbh", "meen"]
     rashi_key_clean = args.rashi.split('(')[0].strip().lower()
     try:
@@ -299,77 +337,165 @@ def main():
     print(f"🌟 YT JYOTISH RAHASYA: Automation Engine 🌟")
     print(f"   Target: {args.rashi} (Index: {rashi_idx})")
     print(f"   Date: {date_str}")
-    print(f"   Style: Dynamic Color Theme + Karaoke Text")
+    print(f"   Type: {args.type.upper()}")
     print("="*60 + "\n")
     
-    # --- 1. DAILY VIDEO (Always Run) ---
-    daily_success = False
-    try:
-        print("🔮 Generating DAILY Horoscope...")
-        daily_script = agents['astrologer'].generate_daily_rashifal(args.rashi, date_str)
-        
-        # EXTRACT LUCKY COLOR FOR THEME
-        # We want the video background to match the Lucky Color of the day!
-        theme_color = None
-        if "lucky_color" in daily_script:
-            l_text = str(daily_script["lucky_color"]).lower()
-            # Simple keyword search
-            valid_colors = ["red", "blue", "green", "yellow", "white", "black", "pink", "orange", "purple", "brown", "gold", "silver"]
-            for c in valid_colors:
-                if c in l_text:
-                    theme_color = c
-                    break
-        
-        produce_video_from_script(
-            agents, 
-            args.rashi, 
-            f"Daily_{today.strftime('%Y%m%d')}", 
-            daily_script, 
-            date_str,
-            theme_override=theme_color
-        )
-        daily_success = True
-    except Exception as e:
-        print(f"❌ Daily Video Failed: {e}")
-        import traceback
-        traceback.print_exc()
-
-    # --- 2. MONTHLY VIDEO (Drip Schedule: Day X = Rashi X) ---
-    # User Request: "1 for one rashi ... next day next rashi"
-    if today.day == rashi_idx: 
+    generated_content = [] # Track what we produced for upload
+    
+    # ==========================
+    # MODE 1: SHORTS (MORNING)
+    # ==========================
+    if args.type == "shorts":
         try:
-            print(f"\n📅 It is Day {today.day}! Generating MONTHLY Horoscope for {args.rashi}...")
-            monthly_script = agents['astrologer'].generate_monthly_forecast(args.rashi, month_year)
-            produce_video_from_script(
-                agents,
-                args.rashi,
-                f"Monthly_{today.strftime('%B_%Y')}",
-                monthly_script,
-                month_year
-                # No specific color theme for monthly, or use default Rashi theme
-            )
-        except Exception as e:
-            print(f"❌ Monthly Video Failed: {e}")
-
-    # --- 3. YEARLY VIDEO (Drip Schedule: Jan X = Rashi X) ---
-    if today.month == 1 and today.day == rashi_idx:
-        try:
-            print(f"\n🎆 HAPPY NEW YEAR! It is Jan {today.day}! Generating YEARLY Horoscope for {args.rashi}...")
-            yearly_script = agents['astrologer'].generate_yearly_forecast(args.rashi, year_str)
-            produce_video_from_script(
-                agents,
-                args.rashi,
-                f"Yearly_{year_str}",
-                yearly_script,
-                year_str
-            )
-        except Exception as e:
-            print(f"❌ Yearly Video Failed: {e}")
+            print("🔮 Generating DAILY Horoscope (Shorts)...")
+            daily_script = agents['astrologer'].generate_daily_rashifal(args.rashi, date_str)
             
-    # CRITICAL: Exit with error if Daily video failed
-    if not daily_success:
-        print("\n❌ CRITICAL: Daily Video Production Failed.")
-        sys.exit(1)
+            # EXTRACT LUCKY COLOR FOR THEME
+            theme_color = None
+            if "lucky_color" in daily_script:
+                l_text = str(daily_script["lucky_color"]).lower()
+                valid_colors = ["red", "blue", "green", "yellow", "white", "black", "pink", "orange", "purple", "brown", "gold", "silver"]
+                for c in valid_colors:
+                    if c in l_text:
+                        theme_color = c
+                        break
+            
+            hi_date = get_hindi_date_str(today)
+            daily_header = f"दैनिक राशिफल: {hi_date}"
+            
+            suffix = f"Daily_{today.strftime('%Y%m%d')}"
+            produce_video_from_script(
+                agents, 
+                args.rashi, 
+                suffix, 
+                daily_script, 
+                date_str,
+                theme_override=theme_color,
+                period_type="Daily",
+                header_text=daily_header
+            )
+            
+            # Add to list for upload
+            r_clean = args.rashi.split()[0]
+            path = f"outputs/{r_clean}_{suffix}.mp4"
+            generated_content.append({
+                "path": path,
+                "period": "Daily",
+                "date": date_str,
+                "script": daily_script
+            })
+            
+        except Exception as e:
+            print(f"❌ Daily Video Failed: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # ==========================
+    # MODE 2: DETAILED (EVENING)
+    # ==========================
+    elif args.type == "detailed":
+        detailed_produced = False
+        
+        # CHECK 1: YEARLY (Priority 1)
+        if today.month == 1 and today.day == rashi_idx:
+            try:
+                print(f"\n🎆 HAPPY NEW YEAR! It is Jan {today.day}! Generating YEARLY Horoscope for {args.rashi}...")
+                yearly_script = agents['astrologer'].generate_yearly_forecast(args.rashi, year_str)
+                yearly_header = f"वार्षिक राशिफल: {year_str}"
+                
+                suffix = f"Yearly_{year_str}"
+                produce_video_from_script(
+                    agents, args.rashi, suffix, yearly_script, year_str,
+                    period_type="Yearly", header_text=yearly_header
+                )
+                
+                r_clean = args.rashi.split()[0]
+                generated_content.append({
+                    "path": f"outputs/{r_clean}_{suffix}.mp4",
+                    "period": "Yearly",
+                    "date": year_str,
+                    "script": yearly_script
+                })
+                detailed_produced = True
+                
+            except Exception as e:
+                print(f"❌ Yearly Video Failed: {e}")
+
+        # CHECK 2: MONTHLY (Priority 2, only if not Yearly)
+        if not detailed_produced and today.day == rashi_idx: 
+            try:
+                print(f"\n📅 It is Day {today.day}! Generating MONTHLY Horoscope for {args.rashi}...")
+                monthly_script = agents['astrologer'].generate_monthly_forecast(args.rashi, month_year)
+                hi_month = get_hindi_month_str(today)
+                monthly_header = f"मासिक राशिफल: {hi_month}"
+                
+                suffix = f"Monthly_{today.strftime('%B_%Y')}"
+                produce_video_from_script(
+                    agents, args.rashi, suffix, monthly_script, month_year,
+                    period_type="Monthly", header_text=monthly_header
+                )
+                
+                r_clean = args.rashi.split()[0]
+                generated_content.append({
+                    "path": f"outputs/{r_clean}_{suffix}.mp4",
+                    "period": "Monthly",
+                    "date": month_year,
+                    "script": monthly_script
+                })
+                detailed_produced = True
+                
+            except Exception as e:
+                print(f"❌ Monthly Video Failed: {e}")
+
+        # CHECK 3: DAILY REMEDY (Priority 3, Fallback)
+        if not detailed_produced:
+            try:
+                print(f"\n🧘 Generating DAILY REMEDY DEEP DIVE (Evening Special)...")
+                remedy_script = agents['astrologer'].generate_daily_remedy_script(args.rashi, date_str)
+                hi_date = get_hindi_date_str(today)
+                remedy_header = f"आज का महा-उपाय: {hi_date}"
+                
+                suffix = f"Remedy_{today.strftime('%Y%m%d')}"
+                produce_video_from_script(
+                    agents, args.rashi, suffix, remedy_script, date_str,
+                    period_type="Daily_Remedy", header_text=remedy_header
+                )
+                
+                r_clean = args.rashi.split()[0]
+                generated_content.append({
+                    "path": f"outputs/{r_clean}_{suffix}.mp4",
+                    "period": "Daily_Remedy",
+                    "date": date_str,
+                    "script": remedy_script
+                })
+                
+            except Exception as e:
+                print(f"❌ Remedy Video Failed: {e}")
+                import traceback
+                traceback.print_exc()
+
+    # --- UPLOAD LOGIC ---
+    if args.upload and generated_content:
+        uploader = agents['uploader']
+        if uploader.service:
+            for item in generated_content:
+                path = item["path"]
+                if os.path.exists(path):
+                    print(f"\n🚀 Initiating Upload for {item['period']}...")
+                    try:
+                        # Use AI for metadata
+                        meta = agents['astrologer'].generate_viral_metadata(
+                            args.rashi, item['date'], item['period'], item['script']
+                        )
+                    except Exception as e:
+                        print(f"⚠️ AI Metadata Failed: {e}. Using fallback.")
+                        meta = uploader.generate_metadata(args.rashi, item['date'], item['period'])
+                    
+                    if "categoryId" not in meta: meta["categoryId"] = "24"
+                    
+                    uploader.upload_video(path, meta)
+        else:
+            print("❌ Upload skipped: No Auth.")
 
 if __name__ == "__main__":
     main()

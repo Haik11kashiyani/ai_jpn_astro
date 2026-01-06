@@ -1,12 +1,30 @@
 name: Daily Rashifal Production
 on:
   workflow_dispatch:
+    inputs:
+      video_type:
+        description: 'Video Type'
+        required: true
+        default: 'shorts'
+        type: choice
+        options:
+        - shorts
+        - detailed
   schedule:
-    - cron: '30 18 * * *' # 11:30 PM IST (UTC 18:30)
+    - cron: '0 1 * * *'   # 6:30 AM IST (Morning Shorts)
+    - cron: '30 13 * * *' # 7:00 PM IST (Evening Detailed)
 
 jobs:
   produce-video:
     runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1 # Safety for Free Tier API limits
+      matrix:
+        rashi: [
+          "Mesh (Aries)", "Vrushabh (Taurus)", "Mithun (Gemini)", "Kark (Cancer)",
+          "Singh (Leo)", "Kanya (Virgo)", "Tula (Libra)", "Vrushchik (Scorpio)",
+          "Dhanu (Sagittarius)", "Makar (Capricorn)", "Kumbh (Aquarius)", "Meen (Pisces)"
+        ]
     
     steps:
     - name: Checkout Code
@@ -26,18 +44,36 @@ jobs:
         pip install -r requirements.txt
         playwright install chromium
         
+    - name: Determine Video Type
+      id: type_check
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "VIDEO_TYPE=${{ inputs.video_type }}" >> $GITHUB_ENV
+        else
+          # Check UTC Hour
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" -lt 10 ]; then
+            echo "VIDEO_TYPE=shorts" >> $GITHUB_ENV
+          else
+            echo "VIDEO_TYPE=detailed" >> $GITHUB_ENV
+          fi
+        fi
+        
     - name: Run Production Studio
       env:
         OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
         GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
         PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+        YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+        YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
       run: |
-        python main.py --rashi "Mesh (Aries)"
+        python main.py --rashi "${{ matrix.rashi }}" --type ${{ env.VIDEO_TYPE }} --upload
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: daily-rashifal-video
+        name: ${{ env.VIDEO_TYPE }}-rashifal-${{ matrix.rashi }}
         path: outputs/*.mp4
         retention-days: 7

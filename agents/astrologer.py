@@ -306,7 +306,7 @@ class AstrologerAgent:
         Return ONLY valid JSON:
         {{
             "hook": "The biggest theme of the year (Hindi)",
-            "intro": "Grand overview of 2025 for this sign",
+            "intro": "Grand overview of {year} for this sign",
             "love": "Love life analysis for the whole year",
             "career": "Career growth analysis",
             "money": "Wealth accumulation forecast",
@@ -316,6 +316,71 @@ class AstrologerAgent:
         }}
         """
         return self._generate_script(rashi, year, "Yearly", system_prompt, user_prompt)
+
+    def generate_daily_remedy_script(self, rashi: str, date: str) -> dict:
+        """Generates a detailed Daily Remedy (Upay) deep-dive script (Evening Content)."""
+        logging.info(f"✨ Astrologer: Generating Daily Remedy Deep Dive for {rashi}...")
+        
+        system_prompt = """
+        You are 'Acharya Rishiraj', an expert in Vedic Remedies (Lal Kitab & Puranic).
+        Tone: Empathetic, Spiritual, Problem-Solving.
+        Write a DETAILED, 2-minute script focusing ONLY on a specific remedy for the day.
+        Structure it like a spiritual counseling session.
+        """
+        
+        user_prompt = f"""
+        Generate a **Daily Remedy Deep Dive** for **{rashi}** for **{date}**.
+        Focus on ONE major problem people of this sign might face today (based on planetary transit) and provide a powerful, detailed remedy.
+        
+        Return ONLY valid JSON:
+        {{
+            "hook": "Emotional hook addressing the problem (Hindi)",
+            "intro": "Explain WHY this problem is happening today (Planetary Context)",
+            "remedy_detailed": "Step-by-step detailed remedy instructions",
+            "mantra": "A specific mantra to chant",
+            "caution": "What NOT to do today",
+            "motivation": "Closing spiritual motivation"
+        }}
+        """
+        return self._generate_script(rashi, date, "Daily_Remedy", system_prompt, user_prompt)
+
+    def generate_viral_metadata(self, rashi: str, date_str: str, period_type: str, script_data: dict) -> dict:
+        """
+        Generates Viral YouTube Metadata (Title, Desc, Tags) using the LLM.
+        This provides fully dynamic, content-aware metadata instead of static templates.
+        """
+        logging.info(f"🚀 Astrologer: Generating Viral Metadata for {rashi} ({period_type})...")
+        
+        # Extract a brief context
+        context = f"Hook: {script_data.get('hook', '')}. Theme: {script_data.get('intro', '')}"
+        
+        system_prompt = """
+        You are a YouTube Algorithm Hacker & Viral Content Expert.
+        Your goal is to WRITE THE MOST CLICKBAITY, SHOCKING, AND VIRAL METADATA POSSIBLE.
+        
+        RULES FOR VIRALITY:
+        1. WARNINGS & ALERTS work best. Use words like "सावधान" (Beware), "बड़ा बदलाव" (Big Change).
+        2. Create FOMO (Fear Of Missing Out).
+        3. Use CAPSLOCK for impact words.
+        4. Include current trending topics if relevant.
+        """
+        
+        user_prompt = f"""
+        Generate High-CTR YouTube Metadata for a **{period_type}** video.
+        **Rashi**: {rashi}
+        **Date**: {date_str}
+        **Content Highlights**: {context}
+        
+        Return ONLY valid JSON:
+        {{
+            "title": "A SHOCKING, CLICKBAIT Title (Max 90 chars). MUST include {rashi} & {date_str}. MUST END with '#shorts #viral'",
+            "description": "A punchy, emoji-filled description that forces people to watch. Include all relevant hashtags.",
+            "tags": ["List of 20+ viral tags including 'rashifal', 'astrology', 'today', 'bhavishyafal', and current trending keywords"]
+        }}
+        """
+        
+        # Reuse the existing generation logic
+        return self._generate_script(rashi, date_str, f"Metadata_{period_type}", system_prompt, user_prompt)
 
 # Test Run (Uncomment to test)
 # if __name__ == "__main__":
