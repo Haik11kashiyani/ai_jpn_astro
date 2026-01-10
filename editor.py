@@ -193,7 +193,10 @@ class EditorEngine:
         total_frames = int(duration * fps)
         
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-setuid-sandbox"]
+            )
             page = await browser.new_page(viewport={"width": 1080, "height": 1920})
             
             
