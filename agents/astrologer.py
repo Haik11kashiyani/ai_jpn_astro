@@ -219,6 +219,44 @@ class AstrologerAgent:
         """Returns safe, pre-written content to allow testing when APIs are down."""
         logging.warning(f"⚠️ RETURNING MOCK DATA FOR {rashi} ({period_type})")
         
+        # Handle Metadata mock data (for YouTube uploads)
+        if period_type.startswith("Metadata_"):
+            # Extract the actual period type (e.g., "Metadata_Daily" -> "Daily")
+            actual_period = period_type.replace("Metadata_", "")
+            today_str = datetime.now().strftime("%d %B %Y")
+            
+            # Extract clean rashi name for title
+            clean_rashi = rashi.split('(')[0].strip() if '(' in rashi else rashi
+            
+            return {
+                "title": f"{clean_rashi} Rashifal {today_str} | आज का राशिफल 🔮 #shorts #viral",
+                "description": f"""🔮 {rashi} {actual_period} Rashifal - {today_str}
+
+आज का राशिफल देखें और जानें कि सितारे आपके लिए क्या कहते हैं!
+
+🌟 Topics Covered:
+- प्रेम और रिश्ते
+- करियर और व्यापार  
+- धन और वित्त
+- स्वास्थ्य
+
+#shorts #viral #rashifal #astrology #horoscope #jyotish #{clean_rashi.lower()} #dailyhoroscope #trending""",
+                "tags": [
+                    f"{clean_rashi.lower()} rashifal",
+                    "rashifal",
+                    "horoscope",
+                    "astrology",
+                    "shorts",
+                    "viral",
+                    "jyotish",
+                    "daily horoscope",
+                    "aaj ka rashifal",
+                    "zodiac",
+                    "trending"
+                ],
+                "categoryId": "24"
+            }
+        
         if period_type == "Daily":
             return {
                 "hook": f"{rashi} वालों, आज किस्मत का सितारा चमकेगा या बादलों में छिपेगा? {rashi} आज का राशिफल!",
