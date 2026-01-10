@@ -11,16 +11,19 @@ on:
         - shorts
         - detailed
   schedule:
-    # Target Publish: 6:30 AM IST (01:00 UTC) -> Start Gen: 5:00 AM IST (23:30 UTC previous day)
-    - cron: '30 23 * * *' 
-    # Target Publish: 7:00 PM IST (13:30 UTC) -> Start Gen: 5:30 PM IST (12:00 UTC)
-    - cron: '0 12 * * *'
+    # MORNING SHORTS: Target Publish 6:30 AM IST
+    # Start Gen: 2:30 AM IST (21:00 UTC previous day) - 4 hours buffer for 12 rashis
+    - cron: '0 21 * * *'
+    # EVENING DETAILED: Target Publish 7:00 PM IST  
+    # Start Gen: 3:00 PM IST (09:30 UTC) - 4 hours buffer
+    - cron: '30 9 * * *'
 
 jobs:
   produce-video:
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1 # Safety for Free Tier API limits
+      max-parallel: 1 # CRITICAL: One at a time to avoid rate limits
+      fail-fast: false # Continue even if one rashi fails
       matrix:
         rashi: [
           "Mesh (Aries)", "Vrushabh (Taurus)", "Mithun (Gemini)", "Kark (Cancer)",
@@ -52,7 +55,7 @@ jobs:
         if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           echo "VIDEO_TYPE=${{ inputs.video_type }}" >> $GITHUB_ENV
         else
-          # Check UTC Hour
+          # Check UTC Hour - before 10 UTC = morning shorts
           HOUR=$(date -u +%H)
           if [ "$HOUR" -lt 10 ]; then
             echo "VIDEO_TYPE=shorts" >> $GITHUB_ENV
@@ -60,6 +63,11 @@ jobs:
             echo "VIDEO_TYPE=detailed" >> $GITHUB_ENV
           fi
         fi
+    
+    - name: Rate Limit Cooldown (Wait 90s)
+      run: |
+        echo "⏳ Waiting 90 seconds before starting to allow API rate limits to reset..."
+        sleep 90
         
     - name: Run Production Studio
       env:
@@ -79,3 +87,4 @@ jobs:
         name: ${{ env.VIDEO_TYPE }}-rashifal-${{ matrix.rashi }}
         path: outputs/*.mp4
         retention-days: 7
+
