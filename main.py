@@ -473,6 +473,7 @@ def main():
                 print(f"❌ Remedy Video Failed: {e}")
                 import traceback
                 traceback.print_exc()
+                sys.exit(1) # Fail CI
 
     # --- UPLOAD LOGIC ---
     if args.upload and generated_content:
@@ -496,6 +497,11 @@ def main():
                     uploader.upload_video(path, meta)
         else:
             print("❌ Upload skipped: No Auth.")
+    
+    # Final check: If upload requested but nothing generated/uploaded, invoke failure
+    if args.upload and not generated_content:
+         print("❌ No content was generated for upload.")
+         sys.exit(1)
 
 if __name__ == "__main__":
     main()
