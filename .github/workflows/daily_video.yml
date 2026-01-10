@@ -11,8 +11,10 @@ on:
         - shorts
         - detailed
   schedule:
-    - cron: '0 1 * * *'   # 6:30 AM IST (Morning Shorts)
-    - cron: '30 13 * * *' # 7:00 PM IST (Evening Detailed)
+    # Target Publish: 6:30 AM IST (01:00 UTC) -> Start Gen: 5:00 AM IST (23:30 UTC previous day)
+    - cron: '30 23 * * *' 
+    # Target Publish: 7:00 PM IST (13:30 UTC) -> Start Gen: 5:30 PM IST (12:00 UTC)
+    - cron: '0 12 * * *'
 
 jobs:
   produce-video:

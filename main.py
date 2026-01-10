@@ -479,6 +479,40 @@ def main():
     if args.upload and generated_content:
         uploader = agents['uploader']
         if uploader.service:
+            
+            # Scheduling Logic (IST)
+            # Morning: 6:30 AM IST
+            # Evening: 7:00 PM (19:00) IST
+            import pytz
+            ist = pytz.timezone('Asia/Kolkata')
+            now_ist = datetime.now(ist)
+            
+            target_time = None
+            if args.type == "shorts":
+                # Target: 6:30 AM Today
+                target_time = now_ist.replace(hour=6, minute=30, second=0, microsecond=0)
+                # If we are generating already PAST 6:30 AM (e.g. debugging), schedule for tomorrow? 
+                # OR just publish immediately if missed. User said "start 1 hour before".
+                # If we run at 5:00 AM, target is 6:30 AM -> OK.
+                if now_ist > target_time:
+                     # If missed, just publish ASAP (public) or schedule for next day?
+                     # Let's assume late run = publish ASAP.
+                     target_time = None 
+            else:
+                # Target: 7:00 PM Today
+                target_time = now_ist.replace(hour=19, minute=0, second=0, microsecond=0)
+                if now_ist > target_time:
+                    target_time = None
+
+            # Convert to UTC for API if target exists
+            utc_publish_at = None
+            if target_time:
+                target_utc = target_time.astimezone(pytz.utc)
+                # Ensure we are at least 15 mins before target? YouTube has rules?
+                # Actually, simply passing future time works.
+                # Remove timezone info for strict isoformat if needed, but isoformat() handles it.
+                utc_publish_at = target_utc.replace(tzinfo=None) # naive UTC
+
             for item in generated_content:
                 path = item["path"]
                 if os.path.exists(path):
@@ -494,7 +528,8 @@ def main():
                     
                     if "categoryId" not in meta: meta["categoryId"] = "24"
                     
-                    uploader.upload_video(path, meta)
+                    # Pass publish_at
+                    uploader.upload_video(path, meta, publish_at=utc_publish_at)
         else:
             print("❌ Upload skipped: No Auth.")
     

@@ -117,8 +117,8 @@ Knowing your astrology can help you plan your career, love, and money better.
             "categoryId": "24" # Entertainment
         }
 
-    def upload_video(self, file_path: str, metadata: dict, privacy_status: str = "public"):
-        """Uploads the video."""
+    def upload_video(self, file_path: str, metadata: dict, privacy_status: str = "public", publish_at: datetime = None):
+        """Uploads the video. Supports scheduled publishing."""
         if not self.service:
             self.logger.error("❌ Cannot upload: Not Authenticated.")
             return False
@@ -129,6 +129,19 @@ Knowing your astrology can help you plan your career, love, and money better.
 
         self.logger.info(f"🚀 Uploading {file_path}...")
         self.logger.info(f"   Title: {metadata['title']}")
+        
+        status_body = {
+            "privacyStatus": privacy_status,
+            "selfDeclaredMadeForKids": False
+        }
+        
+        # Handle Scheduling
+        if publish_at:
+            # Format: '2024-12-25T07:00:00.000Z' (RFC 3339)
+            # YouTube requires 'private' status for scheduled videos
+            status_body["privacyStatus"] = "private"
+            status_body["publishAt"] = publish_at.isoformat() + "Z" 
+            self.logger.info(f"   📅 Scheduled for: {status_body['publishAt']}")
 
         body = {
             "snippet": {
@@ -137,10 +150,7 @@ Knowing your astrology can help you plan your career, love, and money better.
                 "tags": metadata['tags'],
                 "categoryId": metadata['categoryId']
             },
-            "status": {
-                "privacyStatus": privacy_status,
-                "selfDeclaredMadeForKids": False
-            }
+            "status": status_body
         }
 
         try:
