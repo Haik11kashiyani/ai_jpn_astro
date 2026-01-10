@@ -63,7 +63,7 @@ class NarratorAgent:
     def _fallback_gtts(self, text: str, output_path: str) -> bool:
         """Fallback using Google Text-to-Speech (gTTS)."""
         try:
-            from gTTS import gTTS
+            from gtts import gTTS
             
             # gTTS doesn't support subtitles perfectly, so we make a dummy one or skip
             tts = gTTS(text=text, lang='hi', slow=False)
