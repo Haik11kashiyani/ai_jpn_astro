@@ -39,19 +39,42 @@ class NarratorAgent:
                             "duration": chunk["duration"] / 10000000
                         })
             
+            # Verify file size - if 0 or too small, consider it failed
+            if os.path.exists(output_path) and os.path.getsize(output_path) < 100:
+                raise Exception("EdgeTTS output too small/invalid.")
+
             # Save subtitles
             if subtitles:
                 with open(subtitle_path, "w", encoding="utf-8") as f:
                     json.dump(subtitles, f, ensure_ascii=False, indent=2)
             
-            if os.path.exists(output_path):
-                logging.info(f"   ✅ Audio saved: {output_path}")
-                logging.info(f"   ✅ Subtitles saved: {subtitle_path}")
-                return True
-            return False
+            logging.info(f"   ✅ EdgeTTS Audio saved: {output_path}")
+            return True
             
         except Exception as e:
-            logging.error(f"❌ Narrator Failed: {e}")
+            logging.warning(f"⚠️ EdgeTTS Failed ({e}). Switching to Fallback (gTTS)...")
+            
+            # Cleanup broken file
+            if os.path.exists(output_path):
+                 os.remove(output_path)
+            
+            return self._fallback_gtts(text, output_path)
+
+    def _fallback_gtts(self, text: str, output_path: str) -> bool:
+        """Fallback using Google Text-to-Speech (gTTS)."""
+        try:
+            from gTTS import gTTS
+            
+            # gTTS doesn't support subtitles perfectly, so we make a dummy one or skip
+            tts = gTTS(text=text, lang='hi', slow=False)
+            tts.save(output_path)
+            
+            if os.path.exists(output_path):
+                logging.info(f"   ✅ gTTS Fallback Audio saved: {output_path}")
+                return True
+            return False
+        except Exception as e:
+            logging.error(f"❌ gTTS Fallback Failed: {e}")
             return False
 
     def speak(self, text: str, output_path: str):

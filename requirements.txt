@@ -13,3 +13,4 @@ numpy<2.0.0
 playwright
 nest_asyncio
 pytz
+gTTS
