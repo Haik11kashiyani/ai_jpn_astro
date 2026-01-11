@@ -382,15 +382,25 @@ class AstrologerAgent:
         """
         return self._generate_script(rashi, date, "Daily_Remedy", system_prompt, user_prompt)
 
-    def generate_viral_metadata(self, rashi: str, date_str: str, period_type: str, script_data: dict) -> dict:
+    def generate_viral_metadata(self, rashi: str, date_str: str, period_type: str, script_data) -> dict:
         """
         Generates Viral YouTube Metadata (Title, Desc, Tags) using the LLM.
         This provides fully dynamic, content-aware metadata instead of static templates.
         """
         logging.info(f"🚀 Astrologer: Generating Viral Metadata for {rashi} ({period_type})...")
         
-        # Extract a brief context
-        context = f"Hook: {script_data.get('hook', '')}. Theme: {script_data.get('intro', '')}"
+        # Handle script_data being a list (unwrap single-item lists)
+        if isinstance(script_data, list):
+            if len(script_data) > 0 and isinstance(script_data[0], dict):
+                script_data = script_data[0]
+            else:
+                script_data = {}
+        
+        # Safely extract context
+        if isinstance(script_data, dict):
+            context = f"Hook: {script_data.get('hook', '')}. Theme: {script_data.get('intro', '')}"
+        else:
+            context = "Daily horoscope prediction"
         
         system_prompt = """
         You are a YouTube Algorithm Hacker & Viral Content Expert.
@@ -417,8 +427,27 @@ class AstrologerAgent:
         }}
         """
         
-        # Reuse the existing generation logic
-        return self._generate_script(rashi, date_str, f"Metadata_{period_type}", system_prompt, user_prompt)
+        # Generate and validate
+        result = self._generate_script(rashi, date_str, f"Metadata_{period_type}", system_prompt, user_prompt)
+        
+        # Handle list result (unwrap if needed)
+        if isinstance(result, list):
+            if len(result) > 0 and isinstance(result[0], dict):
+                result = result[0]
+            else:
+                # Fallback to mock data
+                result = self._get_mock_data(rashi, f"Metadata_{period_type}")
+        
+        # Validate required keys exist
+        if not isinstance(result, dict) or 'title' not in result:
+            logging.warning("⚠️ Invalid metadata result, using fallback")
+            result = self._get_mock_data(rashi, f"Metadata_{period_type}")
+        
+        # Ensure categoryId exists
+        if 'categoryId' not in result:
+            result['categoryId'] = '24'
+            
+        return result
 
 # Test Run (Uncomment to test)
 # if __name__ == "__main__":
