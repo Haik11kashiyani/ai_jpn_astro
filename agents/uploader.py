@@ -175,5 +175,7 @@ Knowing your astrology can help you plan your career, love, and money better.
             return True
             
         except Exception as e:
+            import traceback
             self.logger.error(f"❌ Upload Failed: {e}")
+            self.logger.error(f"   Full traceback:\n{traceback.format_exc()}")
             return False

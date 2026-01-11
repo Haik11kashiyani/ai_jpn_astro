@@ -513,6 +513,9 @@ def main():
                 # Remove timezone info for strict isoformat if needed, but isoformat() handles it.
                 utc_publish_at = target_utc.replace(tzinfo=None) # naive UTC
 
+            upload_success_count = 0
+            upload_failure_count = 0
+            
             for item in generated_content:
                 path = item["path"]
                 if os.path.exists(path):
@@ -528,10 +531,25 @@ def main():
                     
                     if "categoryId" not in meta: meta["categoryId"] = "24"
                     
-                    # Pass publish_at
-                    uploader.upload_video(path, meta, publish_at=utc_publish_at)
+                    # Pass publish_at and CHECK the result!
+                    upload_result = uploader.upload_video(path, meta, publish_at=utc_publish_at)
+                    if upload_result:
+                        upload_success_count += 1
+                        print(f"✅ Upload successful for {item['period']}")
+                    else:
+                        upload_failure_count += 1
+                        print(f"❌ Upload FAILED for {item['period']}")
+                else:
+                    print(f"❌ Video file not found: {path}")
+                    upload_failure_count += 1
+            
+            # Summary and fail CI if any upload failed
+            print(f"\n📊 Upload Summary: {upload_success_count} success, {upload_failure_count} failed")
+            if upload_failure_count > 0:
+                raise Exception(f"YouTube upload failed! {upload_failure_count} video(s) failed to upload.")
         else:
             print("❌ Upload skipped: No Auth.")
+            raise Exception("YouTube authentication failed - cannot upload video.")
     
     # Final check: If upload requested but nothing generated/uploaded, invoke failure
     if args.upload and not generated_content:
