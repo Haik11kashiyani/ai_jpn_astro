@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1 # CRITICAL: One at a time to avoid rate limits
-      fail-fast: false # Continue even if one rashi fails
+      fail-fast: true # STOP if one fails (e.g. YouTube Limit Hit)
       matrix:
         rashi: [
           "Mesh (Aries)", "Vrushabh (Taurus)", "Mithun (Gemini)", "Kark (Cancer)",
