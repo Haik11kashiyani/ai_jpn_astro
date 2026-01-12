@@ -100,45 +100,36 @@ class EditorEngine:
 
     def get_rashi_image_path(self, rashi_name: str, period_type: str = "Daily") -> str:
         """
-        Finds the appropriate rashi image based on Period Type.
-        - Daily -> assets/12_photos
-        - Monthly -> assets/monthly_12_photos
-        - Yearly -> assets/yearly_12_photos
+        Finds the appropriate rashi image using fuzzy matching.
         """
         rashi_key = self._get_rashi_key(rashi_name)
+        alt_key = ""
         if "(" in rashi_name:
             alt_key = rashi_name.split("(")[1].replace(")", "").strip().lower()
-        else:
-            alt_key = rashi_key
-            
-        filename = RASHI_IMAGE_MAP.get(rashi_key) or RASHI_IMAGE_MAP.get(alt_key)
-        
-        if filename:
-            # Determine Folder
-            folder_map = {
-                "Daily": "12_photos",
-                "Monthly": "monthly_12_photos",
-                "Yearly": "yearly_12_photos"
-            }
-            target_folder = folder_map.get(period_type, "12_photos")
-            
-            # Remove extension from map value if present, just to be safe (though we can just use basename)
-            base_name = os.path.splitext(filename)[0]
-            
-            possible_exts = [".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"]
-            
-            # Check specific folder first
-            for ext in possible_exts:
-                path = os.path.join("assets", target_folder, base_name + ext)
-                if os.path.exists(path):
-                    return os.path.abspath(path)
 
-            # Fallback to Daily (12_photos) if specific not found
-            for ext in possible_exts:
-                fallback_path = os.path.join("assets", "12_photos", base_name + ext)
-                if os.path.exists(fallback_path):
-                    return os.path.abspath(fallback_path)
+        # Folders to search in order
+        folders = ["12_photos"]
+        if period_type == "Monthly": folders.insert(0, "monthly_12_photos")
+        elif period_type == "Yearly": folders.insert(0, "yearly_12_photos")
+        
+        search_keys = [rashi_key, alt_key] if alt_key else [rashi_key]
+        
+        for folder in folders:
+            folder_path = os.path.join("assets", folder)
+            if not os.path.exists(folder_path): continue
+            
+            # List all files for case-insensitive matching
+            try:
+                files = os.listdir(folder_path)
+                for f in files:
+                    fname_lower = f.lower()
+                    for key in search_keys:
+                        if key and key in fname_lower: # Looser match: "mesh" in "mesh_daily.jpg"
+                             return os.path.abspath(os.path.join(folder_path, f))
+            except Exception as e:
+                logging.warning(f"Error scanning folder {folder}: {e}")
                 
+        # Final fallback: Look for ANY image with the key in 'assets' root if needed (optional)
         return None
 
     async def _render_html_scene(self, rashi_name, text, duration, subtitle_data, theme_override=None, header_text="", period_type="Daily"):
