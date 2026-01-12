@@ -211,9 +211,9 @@ class AstrologerAgent:
         if google_result:
             return google_result
         
-        # ABSOLUTE SAFETY NET: Return Mock Data so pipeline doesn't crash during testing
-        logging.error(f"❌ All models, keys, and fallbacks exhausted. switch to MOCK MODE.")
-        return self._get_mock_data(rashi, period_type)
+        # CRITICAL: Do not use Mock Data for Production runs, as it ruins the channel.
+        raise Exception(f"❌ API Quota Exceeded for ALL keys. Cannot generate valid content for {rashi}.")
+        # return self._get_mock_data(rashi, period_type)
 
     def _get_mock_data(self, rashi, period_type):
         """Returns safe, pre-written content to allow testing when APIs are down."""
@@ -443,13 +443,13 @@ class AstrologerAgent:
             if len(result) > 0 and isinstance(result[0], dict):
                 result = result[0]
             else:
-                # Fallback to mock data
-                result = self._get_mock_data(rashi, f"Metadata_{period_type}")
+                # Fail hard on metadata too
+                raise Exception(f"Metadata generation failed (Quota). Stopping upload for {rashi}.")
         
         # Validate required keys exist
         if not isinstance(result, dict) or 'title' not in result:
-            logging.warning("⚠️ Invalid metadata result, using fallback")
-            result = self._get_mock_data(rashi, f"Metadata_{period_type}")
+            logging.warning("⚠️ Invalid metadata result.")
+            raise Exception("Invalid metadata generated.")
         
         # Ensure categoryId exists
         if 'categoryId' not in result:

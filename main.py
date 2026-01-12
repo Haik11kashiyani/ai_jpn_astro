@@ -481,28 +481,20 @@ def main():
         if uploader.service:
             
             # Scheduling Logic (IST)
-            # Morning: 6:30 AM IST
-            # Evening: 7:00 PM (19:00) IST
+            # FORCE ALL UPLOADS TO 6:30 AM (User Request)
             import pytz
+            from datetime import timedelta
             ist = pytz.timezone('Asia/Kolkata')
             now_ist = datetime.now(ist)
             
-            target_time = None
-            if args.type == "shorts":
-                # Target: 6:30 AM Today
-                target_time = now_ist.replace(hour=6, minute=30, second=0, microsecond=0)
-                # If we are generating already PAST 6:30 AM (e.g. debugging), schedule for tomorrow? 
-                # OR just publish immediately if missed. User said "start 1 hour before".
-                # If we run at 5:00 AM, target is 6:30 AM -> OK.
-                if now_ist > target_time:
-                     # If missed, just publish ASAP (public) or schedule for next day?
-                     # Let's assume late run = publish ASAP.
-                     target_time = None 
-            else:
-                # Target: 7:00 PM Today
-                target_time = now_ist.replace(hour=19, minute=0, second=0, microsecond=0)
-                if now_ist > target_time:
-                    target_time = None
+            # Target: 6:30 AM Today
+            target_time = now_ist.replace(hour=6, minute=30, second=0, microsecond=0)
+            
+            # If we are already past 6:30 AM (e.g. running at 3:00 PM), schedule for TOMORROW 6:30 AM
+            if now_ist > target_time:
+                target_time = target_time + timedelta(days=1)
+                
+            print(f"   📅 Target Upload Time: {target_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
             # Convert to UTC for API if target exists
             utc_publish_at = None
