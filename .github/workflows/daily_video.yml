@@ -82,6 +82,7 @@ jobs:
         python main.py --rashi "${{ matrix.rashi }}" --type ${{ env.VIDEO_TYPE }} --upload
         
     - name: Upload Artifact
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.VIDEO_TYPE }}-rashifal-${{ matrix.rashi }}
