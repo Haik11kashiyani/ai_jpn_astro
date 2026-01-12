@@ -38,19 +38,19 @@
         }
 
         #bg1 {
-            background: var(--c1, #303060);
+            background: linear-gradient(135deg, var(--c1, #303060), var(--c2, #202040));
             animation: float 20s infinite alternate;
         }
 
         #bg2 {
-            background: var(--c2, #202040);
+            background: radial-gradient(circle at center, var(--c2, #202040), var(--c3, #151525));
             animation: float 25s infinite alternate-reverse;
             left: -30%;
         }
 
         #bg3 {
-            background: var(--glow, #FFD700);
-            opacity: 0.3;
+            background: linear-gradient(to bottom right, var(--glow, #FFD700), transparent);
+            opacity: 0.4;
             animation: float 18s infinite alternate;
             top: -30%;
         }
