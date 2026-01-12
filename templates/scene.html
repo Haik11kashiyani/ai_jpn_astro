@@ -22,56 +22,46 @@
         }
 
         /* ----------------------
-           BACKGROUND LAYERS
+           DYNAMIC BACKGROUND
            ---------------------- */
-
-        /* Layer 1: Base Gradient (Dynamic 2-color radial) */
-        #background {
+        .bg-layer {
             position: absolute;
             top: -50%;
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle at 50% 50%, var(--c2, #202040) 10%, var(--c1, #303060) 90%);
-            opacity: 0.8;
+            border-radius: 40%;
+            filter: blur(80px);
+            opacity: 0.6;
             z-index: 1;
+            mix-blend-mode: screen;
         }
 
-        /* Layer 2: Overlay for Depth (Dark vignette + color tint) */
+        #bg1 { background: var(--c1, #303060); animation: float 20s infinite alternate; }
+        #bg2 { background: var(--c2, #202040); animation: float 25s infinite alternate-reverse; left: -30%; }
+        #bg3 { background: var(--glow, #FFD700); opacity: 0.3; animation: float 18s infinite alternate; top: -30%; }
+        
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(100px, 50px) rotate(20deg); }
+        }
+
         #overlay-gradient {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 50% 30%, transparent 20%, rgba(0, 0, 0, 0.8) 100%);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.9) 100%);
             z-index: 2;
         }
 
-        /* Layer 3: Particles (Subtle noise texture) */
         #particles {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
             z-index: 3;
-            opacity: 0.2;
+            opacity: 0.3;
             mix-blend-mode: overlay;
-        }
-
-        /* Layer 4: Accent Light (Top glow) */
-        #accent-light {
-            position: absolute;
-            top: -20%;
-            left: 20%;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, var(--glow, #FFD700) 0%, transparent 60%);
-            opacity: 0.15;
-            z-index: 2;
-            mix-blend-mode: screen;
         }
 
         /* ----------------------
@@ -79,11 +69,11 @@
            ---------------------- */
         #rashi-container {
             position: absolute;
-            top: 180px;
+            top: 220px;
             left: 50%;
             transform: translateX(-50%);
-            width: 550px;
-            height: 550px;
+            width: 500px;
+            height: 500px;
             z-index: 5;
             display: flex;
             justify-content: center;
@@ -93,29 +83,21 @@
         #rashi-image {
             width: 100%;
             height: 100%;
-            /* Strict cropping rules for wide/tall images */
             object-fit: cover;
-            object-position: center center;
-
-            /* Cleaner, Sophisticated Look: No crazy glow. Just clean shadow + subtle border. */
-            filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.6));
+            filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5));
             border-radius: 50%;
-            /* If circular images */
-            /* Optional: Add a subtle golden ring/border via box-shadow or border */
-            border: 2px solid rgba(255, 255, 255, 0.1);
+            border: 4px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* Inner glow/aura container specifically for the image to separate it */
         .aura-circle {
             position: absolute;
-            width: 500px;
-            height: 500px;
+            width: 520px;
+            height: 520px;
             border-radius: 50%;
-            border: 1px solid var(--glow, #FFD700);
-            box-shadow: 0 0 30px var(--glow, #FFD700) inset, 0 0 50px var(--glow, #FFD700);
-            opacity: 0.2;
+            border: 2px solid var(--glow, #FFD700);
+            box-shadow: 0 0 40px var(--glow, #FFD700), inset 0 0 20px var(--glow, #FFD700);
+            opacity: 0.0; /* Controlled by GSAP */
             z-index: 4;
-            pointer-events: none;
         }
 
         /* ----------------------
@@ -123,72 +105,72 @@
            ---------------------- */
         #text-container {
             position: absolute;
-            top: 900px;
-            /* Moved up a bit */
+            top: 850px;
             left: 50%;
             transform: translateX(-50%);
-            width: 880px;
-            /* Slightly narrower padding */
+            width: 850px;
             text-align: center;
-            color: #ffffff;
+            color: #fff;
             z-index: 10;
-
-            /* Typography */
-            font-size: 58px;
+            font-size: 56px;
             font-weight: 700;
-            line-height: 1.5;
-            letter-spacing: 0.5px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-
-            /* Glass Card Effect - Cleaner */
-            background: rgba(20, 20, 30, 0.4);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            padding: 60px 50px;
-            border-radius: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-
-            min-height: 400px;
+            line-height: 1.6;
+            
+            /* Glassmorphism */
+            background: rgba(25, 25, 35, 0.6);
+            backdrop-filter: blur(30px);
+            padding: 80px 60px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+            
             display: flex;
-            align-items: center;
-            justify-content: center;
             flex-wrap: wrap;
+            justify-content: center;
             align-content: center;
+            opacity: 0; /* JS Fade In */
         }
 
         .word {
             display: inline-block;
-            opacity: 0.3;
-            /* Higher base opacity for readability */
+            opacity: 0.4;
             margin: 0 8px;
-            transition: all 0.25s ease-out;
-            transform-origin: center bottom;
+            transform-origin: center center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .word.active {
             opacity: 1;
-            transform: scale(1.15) translateY(-5px);
+            transform: scale(1.3);
             color: var(--glow, #FFD700);
-            text-shadow: 0 0 25px var(--glow, #FFD700);
-            font-weight: 800;
+            text-shadow: 0 0 30px var(--glow, #FFD700);
+        }
+        
+        #header-text {
+            position: absolute;
+            top: 80px;
+            width: 100%;
+            text-align: center;
+            font-size: 42px;
+            font-weight: bold;
+            color: rgba(255,255,255,0.7);
+            letter-spacing: 2px;
+            z-index: 8;
+            text-transform: uppercase;
         }
     </style>
 </head>
 
 <body>
-    <div id="background"></div>
+    <div class="bg-layer" id="bg1"></div>
+    <div class="bg-layer" id="bg2"></div>
+    <div class="bg-layer" id="bg3"></div>
     <div id="overlay-gradient"></div>
-    <div id="accent-light"></div>
     <div id="particles"></div>
-
-    <!-- New Header -->
-    <div id="header-container">
-        <!-- Injected Header Text -->
-    </div>
+    
+    <div id="header-text"></div>
 
     <div id="rashi-container">
-        <!-- New Aura Ring -->
         <div class="aura-circle"></div>
         <img id="rashi-image" src="" alt="Rashi">
     </div>
@@ -202,54 +184,74 @@
         const urlParams = new URLSearchParams(window.location.search);
         const rashiImg = urlParams.get('img');
         const text = urlParams.get('text') || "";
-        const headerText = urlParams.get('header') || ""; // New Param
+        const header = urlParams.get('header') || "";
         const c1 = urlParams.get('c1') || "#303060";
         const c2 = urlParams.get('c2') || "#202040";
         const c3 = urlParams.get('c3') || "#101020";
         const glow = urlParams.get('glow') || "#FFD700";
-        const elem = urlParams.get('elem') || "neutral";
 
         // --- SETUP ---
         if (rashiImg) document.getElementById('rashi-image').src = rashiImg;
-        if (headerText) document.getElementById('header-container').innerText = headerText;
+        if (header) document.getElementById('header-text').innerText = header;
 
-        // Set CSS Variables
-        document.body.style.setProperty('--c1', c1);
-        document.body.style.setProperty('--c2', c2);
-        document.body.style.setProperty('--c3', c3);
-        document.body.style.setProperty('--glow', glow);
+        document.documentElement.style.setProperty('--c1', c1);
+        document.documentElement.style.setProperty('--c2', c2);
+        document.documentElement.style.setProperty('--c3', c3);
+        document.documentElement.style.setProperty('--glow', glow);
 
-        // Split text into words
         const container = document.getElementById('text-container');
         const words = text.split(' ');
         container.innerHTML = words.map(w => `<span class="word">${w}</span>`).join('');
         const wordEls = document.querySelectorAll('.word');
 
-        // --- GSAP ANIMATIONS (Controlled by seek()) ---
+        // --- GSAP ANIMATIONS ---
         const tl = gsap.timeline({ paused: true });
 
-        // 1. Background Deep Rotate
-        tl.to("#background", {
-            rotation: 20,
-            scale: 1.2,
-            duration: 60,
+        // 1. Initial Entry (0s - 1s)
+        tl.to("#text-container", {
+            opacity: 1,
+            y: 0,
+            duration: 1,
+            ease: "power2.out"
+        }, 0);
+        
+        // Stagger words in
+        tl.from(".word", {
+            y: 20,
+            opacity: 0,
+            duration: 0.8,
+            stagger: 0.05,
+            ease: "back.out(1.7)"
+        }, 0.2);
+
+        // 2. Continuous Background Movement (Simulated for Seek)
+        // Since we seek(), animations must be mapped to timeline.
+        // We use a long duration to simulate "infinite" loop over the clip length
+        tl.to(".bg-layer", {
+            rotation: 360,
+            scale: 1.5,
+            duration: 60, 
             ease: "none"
         }, 0);
 
-        // 2. Rashi Premium Float (Subtle, No Blinking)
-        // Just a gentle float up and down to keep it alive
-        tl.to("#rashi-image", {
-            y: -20, // Reduced from -40
-            duration: 6, // Slower
-            repeat: 20,
+        // 3. Rashi Float & Aura Pulse
+        tl.to("#rashi-container", {
+            y: -30,
+            duration: 4,
+            repeat: 15,
             yoyo: true,
             ease: "sine.inOut"
         }, 0);
+        
+        tl.to(".aura-circle", {
+            opacity: 0.6,
+            scale: 1.1,
+            duration: 60, # Long pulse
+            ease: "none" 
+        }, 0);
 
-        // Removed "Pulsing Glow" / Blinking effect as requested
-        // Static classy shadow is already in CSS
 
-        // 3. Control Interface
+        // --- CONTROL INTERFACE ---
         window.setWordActive = (index) => {
             wordEls.forEach((el, i) => {
                 if (i === index) el.classList.add('active');
