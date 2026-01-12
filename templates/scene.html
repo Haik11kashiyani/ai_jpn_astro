@@ -236,43 +236,12 @@
         container.innerHTML = words.map(w => `<span class="word">${w}</span>`).join('');
         const wordEls = document.querySelectorAll('.word');
 
-        // --- GSAP ANIMATIONS ---
+        const animStyle = urlParams.get('anim') || 'premium';
+
+        // --- GSAP ANIMATION PRESETS ---
         const tl = gsap.timeline({ paused: true });
 
-        // 1. Initial Entry (0s - 1s)
-        tl.to("#text-container", {
-            opacity: 1,
-            y: 0,
-            duration: 1,
-            ease: "power3.out"
-        }, 0);
-
-        // Header Character Stagger (SplitText style)
-        if (header) {
-            tl.from(".char", {
-                opacity: 0,
-                scale: 0,
-                y: -50,
-                rotationX: 180,
-                duration: 0.8,
-                stagger: 0.03,
-                ease: "back.out(1.5)"
-            }, 0.1);
-        }
-
-        // Body Words Stagger (Premium Reveal)
-        tl.from(".word", {
-            y: 40,
-            z: -100,
-            rotationX: 45,
-            opacity: 0,
-            scale: 0.8,
-            duration: 0.8,
-            stagger: 0.04,
-            ease: "back.out(1.2)"
-        }, 0.3); // Starts slightly after header
-
-        // 2. Continuous Background Movement
+        // Common: Background Rotation
         tl.to(".bg-layer", {
             rotation: 360,
             scale: 1.5,
@@ -280,7 +249,7 @@
             ease: "none"
         }, 0);
 
-        // 3. Rashi Float & Aura Pulse
+        // Common: Rashi Float
         tl.to("#rashi-container", {
             y: -30,
             duration: 4,
@@ -289,12 +258,64 @@
             ease: "sine.inOut"
         }, 0);
 
+        // Common: Aura Pulse
         tl.to(".aura-circle", {
             opacity: 0.6,
             scale: 1.1,
             duration: 60, // Long pulse
             ease: "none"
         }, 0);
+
+        // --- STYLE SWITCHER ---
+        switch (animStyle) {
+            case 'cine':
+                // STYLE 2: CINEMATIC BLUR
+                tl.to("#text-container", { opacity: 1, duration: 1.5, ease: "power2.inOut" }, 0);
+                if (header) tl.from(".char", { opacity: 0, filter: "blur(10px)", duration: 1.5, stagger: 0.05 }, 0.2);
+                tl.from(".word", {
+                    opacity: 0, filter: "blur(20px)", scale: 1.1, letterSpacing: "5px",
+                    duration: 1.2, stagger: 0.08, ease: "power2.out"
+                }, 0.5);
+                break;
+
+            case 'type':
+                // STYLE 3: TYPEWRITER
+                tl.to("#text-container", { opacity: 1, duration: 0.5 }, 0);
+                if (header) tl.from(".char", { opacity: 0, duration: 0.05, stagger: 0.05 }, 0.2);
+                tl.from(".word", {
+                    opacity: 0, duration: 0.01, stagger: 0.15,
+                }, 0.5);
+                break;
+
+            case 'pop':
+                // STYLE 4: ENERGETIC POP
+                tl.to("#text-container", { opacity: 1, y: 0, duration: 0.8, ease: "back.out(1.2)" }, 0);
+                if (header) tl.from(".char", { scale: 0, opacity: 0, duration: 0.4, stagger: 0.03, ease: "back.out(2)" }, 0.2);
+                tl.from(".word", {
+                    scale: 0, opacity: 0, duration: 0.6, stagger: 0.06, ease: "elastic.out(1, 0.5)"
+                }, 0.4);
+                break;
+
+            case 'slide':
+                // STYLE 5: MYSTIC SLIDE
+                tl.to("#text-container", { opacity: 1, duration: 1 }, 0);
+                if (header) tl.from(".char", { x: 20, opacity: 0, duration: 0.6, stagger: 0.03 }, 0.2);
+                tl.from(".word", {
+                    y: 50, rotationX: 90, opacity: 0, duration: 0.8, stagger: 0.05, ease: "power3.out"
+                }, 0.3);
+                break;
+
+            case 'premium':
+            default:
+                // STYLE 1: PREMIUM (Original)
+                tl.to("#text-container", { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, 0);
+                if (header) tl.from(".char", { opacity: 0, scale: 0, y: -50, rotationX: 180, duration: 0.8, stagger: 0.03, ease: "back.out(1.5)" }, 0.1);
+                tl.from(".word", {
+                    y: 40, z: -100, rotationX: 45, opacity: 0, scale: 0.8,
+                    duration: 0.8, stagger: 0.04, ease: "back.out(1.2)"
+                }, 0.3);
+                break;
+        }
 
 
         // --- CONTROL INTERFACE ---

@@ -132,7 +132,7 @@ class EditorEngine:
         # Final fallback: Look for ANY image with the key in 'assets' root if needed (optional)
         return None
 
-    async def _render_html_scene(self, rashi_name, text, duration, subtitle_data, theme_override=None, header_text="", period_type="Daily"):
+    async def _render_html_scene(self, rashi_name, text, duration, subtitle_data, theme_override=None, header_text="", period_type="Daily", anim_style="premium"):
         """
         Renders the scene using Playwright.
         Captures screenshots at 30 FPS.
@@ -173,11 +173,12 @@ class EditorEngine:
         encoded_text = urllib.parse.quote(text)
         encoded_header = urllib.parse.quote(header_text)
         
+        # Add animation style to URL
         url = (f"file:///{self.template_path.replace(os.sep, '/')}?text={encoded_text}&header={encoded_header}&img={rashi_img_url}"
                f"&c1={grad[0].replace('#', '%23')}&c2={grad[1].replace('#', '%23')}&c3={grad[2].replace('#', '%23')}"
-               f"&glow={glow.replace('#', '%23')}&elem={element}")
+               f"&glow={glow.replace('#', '%23')}&elem={element}&anim={anim_style}")
         
-        logging.info(f"   🌍 Launching Playwright for scene ({duration}s)...")
+        logging.info(f"   🌍 Launching Playwright ({anim_style.upper()}) for scene ({duration}s)...")
         
         frames = []
         fps = 30
@@ -225,9 +226,14 @@ class EditorEngine:
         return frames
 
     def create_scene(self, rashi_name: str, text: str, duration: float, subtitle_data: list = None, theme_override: str = None, header_text: str = "", period_type: str = "Daily"):
-        """Wrapper to run async render synchronously."""
+        """Wrapper to run async render synchronously. Randomizes animation style."""
+        import random
+        # Randomize animation style per scene
+        anim_styles = ['premium', 'cine', 'type', 'pop', 'slide']
+        chosen_style = random.choice(anim_styles)
+        
         try:
-            frames = asyncio.run(self._render_html_scene(rashi_name, text, duration, subtitle_data, theme_override, header_text, period_type))
+            frames = asyncio.run(self._render_html_scene(rashi_name, text, duration, subtitle_data, theme_override, header_text, period_type, chosen_style))
             
             if not frames:
                 raise Exception("No frames captured")
