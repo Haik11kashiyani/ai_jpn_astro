@@ -403,27 +403,35 @@ class AstrologerAgent:
             context = "Daily horoscope prediction"
         
         system_prompt = """
-        You are a YouTube Algorithm Hacker & Viral Content Expert.
-        Your goal is to WRITE THE MOST CLICKBAITY, SHOCKING, AND VIRAL METADATA POSSIBLE.
+        You are a YouTube Growth Hacker & Viral Content Strategist.
+        Your goal is to WRITE HIGH-CTR, SEO-OPTIMIZED METADATA.
         
-        RULES FOR VIRALITY:
-        1. WARNINGS & ALERTS work best. Use words like "सावधान" (Beware), "बड़ा बदलाव" (Big Change).
-        2. Create FOMO (Fear Of Missing Out).
-        3. Use CAPSLOCK for impact words.
-        4. Include current trending topics if relevant.
+        RULES FOR TITLES:
+        1. **CLEAN & SHOCKING**: Use punchy Hindi/English mix. "Mesh Rashifal: BIG NEWS"
+        2. **MINIMAL EMOJIS**: Use MAX 1 emoji at the very end. Do NOT spam emojis in the title.
+        3. **NO CLICKBAIT SPAM**: Avoid "😱😱😱". Use words like "सच्चाई" (Truth), "चमत्कार" (Miracle), "सावधान" (Beware).
+        
+        RULES FOR DESCRIPTION & TAGS:
+        1. **DYNAMIC HASHTAGS**: Generate hashtags based on the specific prediction (e.g., #money, #love, #shani).
+        2. **TRENDING TAGS**: ALWAYS include these high-volume tags: #astrology #rashifal #horoscope #jyotish #zodiac #dailyhoroscope #shorts #viral
+        3. **MAXIMIZE TAGS**: Fill the description with 15-20 relevant hashtags mixed with keywords.
         """
         
+        # Current Trending Keywords for 2026/Astro
+        trending_keywords = "2026, Saturn Transit, Shani Gochar, Guru Gochar, Rahu Ketu, Love Life, Money Healing"
+        
         user_prompt = f"""
-        Generate High-CTR YouTube Metadata for a **{period_type}** video.
+        Generate YouTube Metadata for a **{period_type}** video.
         **Rashi**: {rashi}
         **Date**: {date_str}
-        **Content Highlights**: {context}
+        **Content Highlight**: {context}
+        **Trending Context**: {trending_keywords}
         
         Return ONLY valid JSON:
         {{
-            "title": "A SHOCKING, CLICKBAIT Title (Max 90 chars). MUST include {rashi} & {date_str}. MUST END with '#shorts #viral'",
-            "description": "A punchy, emoji-filled description that forces people to watch. Include all relevant hashtags.",
-            "tags": ["List of 20+ viral tags including 'rashifal', 'astrology', 'today', 'bhavishyafal', and current trending keywords"]
+            "title": "Creative, Punchy Title (Max 80 chars). {rashi} {date_str}. Ends with 1 relevant emoji.",
+            "description": "Engaging summary in Hindi/English. Must include sections: '✨ Prediction', '🌟 Lucky Number/Color'. END with a block of 20+ viral hashtags (Dynamic + Trending).",
+            "tags": ["List of 25+ high-volume tags. Mix broad (#astrology) and specific (#{rashi.lower()}rashifal)"]
         }}
         """
         
