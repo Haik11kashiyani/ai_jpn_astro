@@ -513,6 +513,11 @@ def main():
                 if os.path.exists(path):
                     print(f"\n🚀 Initiating Upload for {item['period']}...")
                     try:
+                        # Smart Pause: Wait 15s to let API cool down before Metadata call
+                        import time
+                        print("   ⏳ Cooling down for 15s before Metadata AI call...")
+                        time.sleep(15)
+                        
                         # Use AI for metadata
                         meta = agents['astrologer'].generate_viral_metadata(
                             args.rashi, item['date'], item['period'], item['script']

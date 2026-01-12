@@ -64,10 +64,10 @@ jobs:
           fi
         fi
     
-    - name: Rate Limit Cooldown (Wait 90s)
+    - name: Rate Limit Cooldown (Wait 3 Mins)
       run: |
-        echo "⏳ Waiting 90 seconds before starting to allow API rate limits to reset..."
-        sleep 90
+        echo "⏳ Waiting 180 seconds before starting to allow API rate limits to reset..."
+        sleep 180
         
     - name: Run Production Studio
       env:
