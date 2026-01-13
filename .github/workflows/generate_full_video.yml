@@ -1,0 +1,53 @@
+name: Generate Full Daily Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      rashi:
+        description: "Rashi to generate (e.g. Mesh (Aries))"
+        required: true
+        default: "Mesh (Aries)"
+
+permissions:
+  contents: read
+
+jobs:
+  generate-full-video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+
+      - name: Run Main Script (Daily Shorts)
+        id: generate
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          # Run main.py but EXCLUDE upload to just generate the file. 
+          # Pass --upload if you wanted to upload, but user just wants to SEE the file.
+          # We will assume user wants to download it, so we won't auto-upload to YT here unless specified.
+          # However, main.py uploads based on --upload flag. We will OMIT it to just generate local file.
+          python main.py --rashi "${{ github.event.inputs.rashi }}" --type shorts
+
+      - name: Upload Generated Video
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-video-output
+          path: "*.mp4"
