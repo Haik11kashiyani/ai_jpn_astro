@@ -451,6 +451,17 @@ class AstrologerAgent:
             logging.warning("⚠️ Invalid metadata result.")
             raise Exception("Invalid metadata generated.")
         
+        # CRITICAL: Programmatically ensure #shorts #viral is ALWAYS in title
+        title = result.get('title', '')
+        if '#shorts' not in title.lower():
+            # Trim title if needed to add hashtags
+            if len(title) > 80:
+                title = title[:77] + "..."
+            title = title.rstrip() + " #shorts #viral"
+        elif '#viral' not in title.lower():
+            title = title.rstrip() + " #viral"
+        result['title'] = title
+        
         # Ensure categoryId exists
         if 'categoryId' not in result:
             result['categoryId'] = '24'

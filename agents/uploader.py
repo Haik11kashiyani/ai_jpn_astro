@@ -63,18 +63,25 @@ class YouTubeUploader:
         clean_key = rashi_name.split('(')[0].strip().lower()
         hindi_name = RASHI_HINDI.get(clean_key, rashi_name)
         
+        # Extract year dynamically from date_str
+        import re
+        year_match = re.search(r'\\b(20\\d{2})\\b', date_str)
+        dynamic_year = year_match.group(1) if year_match else date_str
+        
+        # Clean rashi name for shorter title (no parentheses)
+        clean_rashi = rashi_name.split('(')[0].strip()
+        
         # --- TITLE STRATEGY (Under 100 chars) ---
-        # "Mesh Rashifal 28 Dec | Aries Surprise! #shorts #viral"
-        if period_type == "Daily":
-            title = f"{hindi_name} Rashifal {date_str} | {rashi_name} 🛑 #shorts #viral"
-        elif period_type == "Monthly":
-            title = f"{hindi_name} Monthly Rashifal {date_str} | {rashi_name} BIG CHANGE #shorts #viral"
+        if period_type == \"Daily\":
+            title = f\"{hindi_name} Rashifal {date_str} 🔮 #shorts #viral\"
+        elif period_type == \"Monthly\":
+            title = f\"{hindi_name} Monthly Rashifal {date_str} 📅 #shorts #viral\"
         else: # Yearly
-            title = f"{hindi_name} Yearly Horoscope {date_str} | {rashi_name} 2025 #shorts #viral"
+            title = f\"{hindi_name} Yearly Horoscope {dynamic_year} ⭐ #shorts #viral\"
             
-        # Ensure legal length
+        # Ensure legal length (keep hashtags at end)
         if len(title) > 100:
-            title = title[:97] + "..."
+            title = title[:85] + \"... #shorts #viral\"
 
         # --- DESCRIPTION STRATEGY ---
         desc = f"""

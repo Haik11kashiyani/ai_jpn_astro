@@ -14,19 +14,20 @@ nest_asyncio.apply()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Rashi name to filename mapping
+# Updated to match actual PNG filenames in assets folder
 RASHI_IMAGE_MAP = {
-    "mesh": "mesh.jpg", "aries": "mesh.jpg",
-    "vrushabh": "vrushabh.jpg", "taurus": "vrushabh.jpg",
-    "mithun": "mithun.jpg", "gemini": "mithun.jpg",
-    "kark": "kark.jpg", "cancer": "kark.jpg",
-    "singh": "singh.jpg", "leo": "singh.jpg",
-    "kanya": "kanya.jpg", "virgo": "kanya.jpg",
-    "tula": "tula.jpg", "libra": "tula.jpg",
-    "vrushchik": "vrushchik.jpg", "scorpio": "vrushchik.jpg",
-    "dhanu": "dhanu.jpg", "sagittarius": "dhanu.jpg",
-    "makar": "makar.jpg", "capricorn": "makar.jpg",
-    "kumbh": "kumbh.jpg", "aquarius": "kumbh.jpg",
-    "meen": "meen.jpg", "pisces": "meen.jpg",
+    "mesh": "mesh", "aries": "mesh",
+    "vrushabh": "vrishabh", "vrishabh": "vrishabh", "taurus": "vrishabh",
+    "mithun": "mithun", "gemini": "mithun",
+    "kark": "kark", "cancer": "kark",
+    "singh": "singh", "leo": "singh",
+    "kanya": "kanya", "virgo": "kanya",
+    "tula": "tula", "libra": "tula",
+    "vrushchik": "vrishchik", "vrishchik": "vrishchik", "scorpio": "vrishchik",
+    "dhanu": "dhanu", "sagittarius": "dhanu",
+    "makar": "makar", "capricorn": "makar",
+    "kumbh": "kumbh", "aquarius": "kumbh",
+    "meen": "meen", "pisces": "meen",
 }
 
 # Rashi-themed Deep Gradients (Top, Middle, Bottom)

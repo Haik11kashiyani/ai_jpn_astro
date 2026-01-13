@@ -326,12 +326,23 @@ def main():
     year_str = today.strftime("%Y")
     
     # --- Rashi Index for Drip Scheduling ---
-    RASHI_ORDER = ["mesh", "vrushabh", "mithun", "kark", "singh", "kanya", "tula", "vrushchik", "dhanu", "makar", "kumbh", "meen"]
+    # Support both spellings (vrushabh/vrishabh, vrushchik/vrishchik)
+    RASHI_IDX_MAP = {
+        "mesh": 1, "aries": 1,
+        "vrushabh": 2, "vrishabh": 2, "taurus": 2,
+        "mithun": 3, "gemini": 3,
+        "kark": 4, "cancer": 4,
+        "singh": 5, "leo": 5,
+        "kanya": 6, "virgo": 6,
+        "tula": 7, "libra": 7,
+        "vrushchik": 8, "vrishchik": 8, "scorpio": 8,
+        "dhanu": 9, "sagittarius": 9,
+        "makar": 10, "capricorn": 10,
+        "kumbh": 11, "aquarius": 11,
+        "meen": 12, "pisces": 12
+    }
     rashi_key_clean = args.rashi.split('(')[0].strip().lower()
-    try:
-        rashi_idx = RASHI_ORDER.index(rashi_key_clean) + 1 # 1-based
-    except ValueError:
-        rashi_idx = 1 # Fallback
+    rashi_idx = RASHI_IDX_MAP.get(rashi_key_clean, 1)
         
     print("\n" + "="*60)
     print(f"🌟 YT JYOTISH RAHASYA: Automation Engine 🌟")
