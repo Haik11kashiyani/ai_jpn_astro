@@ -345,7 +345,7 @@ def main():
     rashi_idx = RASHI_IDX_MAP.get(rashi_key_clean, 1)
         
     print("\n" + "="*60)
-    print(f"🌟 YT JYOTISH RAHASYA: Automation Engine 🌟")
+    print(f"YT JYOTISH RAHASYA: Automation Engine")
     print(f"   Target: {args.rashi} (Index: {rashi_idx})")
     print(f"   Date: {date_str}")
     print(f"   Type: {args.type.upper()}")

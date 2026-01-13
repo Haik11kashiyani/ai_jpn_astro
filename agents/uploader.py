@@ -72,16 +72,16 @@ class YouTubeUploader:
         clean_rashi = rashi_name.split('(')[0].strip()
         
         # --- TITLE STRATEGY (Under 100 chars) ---
-        if period_type == \"Daily\":
-            title = f\"{hindi_name} Rashifal {date_str} 🔮 #shorts #viral\"
-        elif period_type == \"Monthly\":
-            title = f\"{hindi_name} Monthly Rashifal {date_str} 📅 #shorts #viral\"
+        if period_type == "Daily":
+            title = f"{hindi_name} Rashifal {date_str} 🔮 #shorts #viral"
+        elif period_type == "Monthly":
+            title = f"{hindi_name} Monthly Rashifal {date_str} 📅 #shorts #viral"
         else: # Yearly
-            title = f\"{hindi_name} Yearly Horoscope {dynamic_year} ⭐ #shorts #viral\"
+            title = f"{hindi_name} Yearly Horoscope {dynamic_year} ⭐ #shorts #viral"
             
         # Ensure legal length (keep hashtags at end)
         if len(title) > 100:
-            title = title[:85] + \"... #shorts #viral\"
+            title = title[:85] + "... #shorts #viral"
 
         # --- DESCRIPTION STRATEGY ---
         desc = f"""

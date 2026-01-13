@@ -207,7 +207,9 @@ class EditorEngine:
                     # Find which word should be active
                     active_idx = -1
                     for idx, sub in enumerate(subtitle_data):
-                        if sub['start'] <= current_time < (sub['start'] + sub['duration']):
+                        # Ensure we have a valid end time
+                        end_time = sub.get('end', sub['start'] + sub.get('duration', 0.5))
+                        if sub['start'] <= current_time < end_time:
                             active_idx = idx
                             break
                     
