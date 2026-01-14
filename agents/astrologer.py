@@ -175,17 +175,35 @@ class AstrologerAgent:
             for model in self.models:
                 logging.info(f"🤖 Casting {period_type} chart using: {model}")
                 try:
-                    response = self.client.chat.completions.create(
-                        model=model,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        response_format={"type": "json_object"}
-                    )
-                    
-                    raw_content = response.choices[0].message.content
-                    return json.loads(raw_content)
+                    # Try standard JSON mode first
+                    try:
+                        response = self.client.chat.completions.create(
+                            model=model,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt}
+                            ],
+                            response_format={"type": "json_object"}
+                        )
+                        raw_content = response.choices[0].message.content
+                    except Exception as e:
+                        # If 400 Bad Request (likely JSON mode not supported by model), try Plain Text
+                        if "400" in str(e):
+                            logging.warning(f"⚠️ Model {model} rejected JSON mode. Retrying with Plain Text...")
+                            response = self.client.chat.completions.create(
+                                model=model,
+                                messages=[
+                                    {"role": "system", "content": system_prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown, no preambles."},
+                                    {"role": "user", "content": user_prompt}
+                                ]
+                            )
+                            raw_content = response.choices[0].message.content
+                        else:
+                            raise e
+
+                    # Robust JSON cleanup (remove markdown ```json ... ```)
+                    clean_json = raw_content.replace('```json', '').replace('```', '').strip()
+                    return json.loads(clean_json)
                     
                 except Exception as e:
                     error_str = str(e)
