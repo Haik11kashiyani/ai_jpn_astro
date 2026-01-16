@@ -173,6 +173,11 @@ class AstrologerAgent:
         
         while True:
             for model in self.models:
+                # Rate Limit Protection: Wait 2 mins between calls (stays well under limits)
+                import time
+                logging.info(f"⏳ Rate Limit Guard: Waiting 2 minutes before API call...")
+                time.sleep(120)
+                
                 logging.info(f"🤖 Casting {period_type} chart using: {model}")
                 try:
                     # Try standard JSON mode first
@@ -300,22 +305,24 @@ class AstrologerAgent:
         
         system_prompt = """
         You are 'Rishiraj', an expert Vedic Astrologer. Tone: Mystical, Positive, Authoritative.
-        Write a DAILY Horoscope Script in PURE HINDI.
+        Write a DAILY Horoscope Script in PURE HINDI using DEVANAGARI SCRIPT (हिंदी लिपि).
+        CRITICAL: ALL text MUST be in Hindi script like "आज आपका दिन शुभ रहेगा", NOT Romanized like "Aaj aapka din shubh rahega".
         Do NOT mention specific dates.
         """
         
         user_prompt = f"""
         Generate a **Daily Horoscope** for **{rashi}** for {date}.
+        IMPORTANT: Write ALL content in DEVANAGARI SCRIPT (हिंदी), NOT Roman/English letters.
         Return ONLY valid JSON:
         {{
-            "hook": "Short attention grabber (Hindi)",
-            "intro": "Astrological context (Gochar)",
-            "love": "Love prediction",
-            "career": "Career prediction",
-            "money": "Financial prediction",
-            "health": "Health prediction",
-            "remedy": "Specific Vedic remedy",
-            "lucky_color": "Color",
+            "hook": "Short attention grabber (हिंदी में)",
+            "intro": "Astrological context (हिंदी में)",
+            "love": "Love prediction (हिंदी में)",
+            "career": "Career prediction (हिंदी में)",
+            "money": "Financial prediction (हिंदी में)",
+            "health": "Health prediction (हिंदी में)",
+            "remedy": "Specific Vedic remedy (हिंदी में)",
+            "lucky_color": "Color in Hindi",
             "lucky_number": "Number"
         }}
         """
@@ -353,21 +360,23 @@ class AstrologerAgent:
         
         system_prompt = """
         You are 'Rishiraj', the Grand Vedic Astrologer. Tone: Epic, Visionary, Comprehensive.
-        Write a YEARLY 'Varshiphal' Script in PURE HINDI.
+        Write a YEARLY 'Varshiphal' Script in PURE HINDI using DEVANAGARI SCRIPT (हिंदी लिपि).
+        CRITICAL: ALL text MUST be in Hindi script like "आज आपका दिन शुभ रहेगा", NOT Romanized like "Aaj aapka din shubh rahega".
         Focus on Jupiter (Guru), Saturn (Shani), and Rahu/Ketu transits.
         """
         
         user_prompt = f"""
         Generate a **Yearly Horoscope** for **{rashi}** for the year **{year}**.
+        IMPORTANT: Write ALL content in DEVANAGARI SCRIPT (हिंदी), NOT Roman/English letters.
         Return ONLY valid JSON:
         {{
-            "hook": "The biggest theme of the year (Hindi)",
-            "intro": "Grand overview of {year} for this sign",
-            "love": "Love life analysis for the whole year",
-            "career": "Career growth analysis",
-            "money": "Wealth accumulation forecast",
-            "health": "Major health periods to watch",
-            "remedy": "Maha-Upay (Grand Remedy) for the year",
+            "hook": "The biggest theme of the year (हिंदी में)",
+            "intro": "Grand overview of {year} for this sign (हिंदी में)",
+            "love": "Love life analysis (हिंदी में)",
+            "career": "Career growth analysis (हिंदी में)",
+            "money": "Wealth accumulation forecast (हिंदी में)",
+            "health": "Major health periods (हिंदी में)",
+            "remedy": "Maha-Upay (Grand Remedy) (हिंदी में)",
             "lucky_months": "Best months of the year"
         }}
         """
@@ -380,22 +389,24 @@ class AstrologerAgent:
         system_prompt = """
         You are 'Acharya Rishiraj', an expert in Vedic Remedies (Lal Kitab & Puranic).
         Tone: Empathetic, Spiritual, Problem-Solving.
+        Write in PURE HINDI using DEVANAGARI SCRIPT (हिंदी लिपि).
+        CRITICAL: ALL text MUST be in Hindi script like "आज आपका दिन शुभ रहेगा", NOT Romanized.
         Write a DETAILED, 2-minute script focusing ONLY on a specific remedy for the day.
-        Structure it like a spiritual counseling session.
         """
         
         user_prompt = f"""
         Generate a **Daily Remedy Deep Dive** for **{rashi}** for **{date}**.
-        Focus on ONE major problem people of this sign might face today (based on planetary transit) and provide a powerful, detailed remedy.
+        Focus on ONE major problem people of this sign might face today and provide a powerful remedy.
+        IMPORTANT: Write ALL content in DEVANAGARI SCRIPT (हिंदी), NOT Roman/English letters.
         
         Return ONLY valid JSON:
         {{
-            "hook": "Emotional hook addressing the problem (Hindi)",
-            "intro": "Explain WHY this problem is happening today (Planetary Context)",
-            "remedy_detailed": "Step-by-step detailed remedy instructions",
-            "mantra": "A specific mantra to chant",
-            "caution": "What NOT to do today",
-            "motivation": "Closing spiritual motivation"
+            "hook": "Emotional hook (हिंदी में)",
+            "intro": "Why this problem is happening today (हिंदी में)",
+            "remedy_detailed": "Step-by-step remedy instructions (हिंदी में)",
+            "mantra": "A specific mantra to chant (हिंदी में)",
+            "caution": "What NOT to do today (हिंदी में)",
+            "motivation": "Closing spiritual motivation (हिंदी में)"
         }}
         """
         return self._generate_script(rashi, date, "Daily_Remedy", system_prompt, user_prompt)

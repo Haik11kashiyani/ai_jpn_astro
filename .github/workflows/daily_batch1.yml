@@ -1,0 +1,57 @@
+name: Daily Rashifal - Batch 1 (Mesh, Vrushabh, Mithun)
+on:
+  workflow_dispatch:
+  schedule:
+    # 2:30 AM IST = 21:00 UTC (previous day)
+    - cron: "0 21 * * *"
+
+jobs:
+  produce-video:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        rashi: ["Mesh (Aries)", "Vrushabh (Taurus)", "Mithun (Gemini)"]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg imagemagick
+          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Rate Limit Cooldown (4 Mins)
+        run: |
+          echo "⏳ Waiting 4 minutes for rate limits..."
+          sleep 240
+
+      - name: Run Production Studio
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          python main.py --rashi "${{ matrix.rashi }}" --type shorts --upload
+
+      - name: Upload Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch1-${{ matrix.rashi }}
+          path: outputs/*.mp4
+          retention-days: 7
