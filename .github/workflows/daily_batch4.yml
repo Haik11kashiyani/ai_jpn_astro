@@ -1,4 +1,4 @@
-name: Daily Rashifal - Batch 4 (Makar, Kumbh, Meen)
+ame: Daily Rashifal - Batch 4 (Makar, Kumbh, Meen)
 on:
   workflow_dispatch:
   schedule:
