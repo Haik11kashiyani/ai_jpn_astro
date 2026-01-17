@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Updated to match actual PNG filenames in assets folder
 RASHI_IMAGE_MAP = {
     "mesh": "mesh", "aries": "mesh",
-    "vrushabh": "vrishabh", "vrishabh": "vrishabh", "taurus": "vrishabh",
+    "vrushabh": "vrushabh", "vrishabh": "vrushabh", "taurus": "vrushabh",
     "mithun": "mithun", "gemini": "mithun",
     "kark": "kark", "cancer": "kark",
     "singh": "singh", "leo": "singh",
@@ -60,6 +60,7 @@ RASHI_STYLES = {
     "kark":      {"grad": ("#0d1526", "#1565c0", "#90caf9"), "glow": "#e3f2fd", "element": "water"},
     "cancer":    {"grad": ("#0d1526", "#1565c0", "#90caf9"), "glow": "#e3f2fd", "element": "water"},
     "vrushchik": {"grad": ("#200508", "#880e4f", "#ff1744"), "glow": "#ff5252", "element": "water"},
+    "vrishchik": {"grad": ("#200508", "#880e4f", "#ff1744"), "glow": "#ff5252", "element": "water"},
     "scorpio":   {"grad": ("#200508", "#880e4f", "#ff1744"), "glow": "#ff5252", "element": "water"},
     "meen":      {"grad": ("#002025", "#006064", "#1de9b6"), "glow": "#64ffda", "element": "water"},
     "pisces":    {"grad": ("#002025", "#006064", "#1de9b6"), "glow": "#64ffda", "element": "water"},
