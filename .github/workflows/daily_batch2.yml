@@ -1,4 +1,4 @@
-ame: Daily Rashifal - Batch 2 (Kark, Singh, Kanya)
+name: Daily Rashifal - Batch 2 (Kark, Singh, Kanya)
 on:
   workflow_dispatch:
   schedule:
