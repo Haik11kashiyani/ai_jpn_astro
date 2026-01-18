@@ -1,4 +1,4 @@
-ame: Daily Rashifal - Batch 1 (Mesh, Vrushabh, Mithun)
+name: Daily Rashifal - Batch 1 (Mesh, Vrushabh, Mithun)
 on:
   workflow_dispatch:
   schedule:
