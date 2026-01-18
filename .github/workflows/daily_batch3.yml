@@ -1,4 +1,4 @@
-ame: Daily Rashifal - Batch 3 (Tula, Vrushchik, Dhanu)
+name: Daily Rashifal - Batch 3 (Tula, Vrushchik, Dhanu)
 on:
   workflow_dispatch:
   schedule:
