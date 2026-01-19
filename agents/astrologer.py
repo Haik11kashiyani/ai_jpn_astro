@@ -36,10 +36,15 @@ class AstrologerAgent:
         if primary:
             self.api_keys.append(primary)
         
-        # Backup key
+        # Backup key 1
         backup = backup_key or os.getenv("OPENROUTER_API_KEY_BACKUP")
         if backup:
             self.api_keys.append(backup)
+        
+        # Backup key 2 (3rd key for extra capacity)
+        backup2 = os.getenv("OPENROUTER_API_KEY_BACKUP_2")
+        if backup2:
+            self.api_keys.append(backup2)
         
         # Google AI key (fallback)
         self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY") or "AIzaSyDw8nEeFSWIajWJIL43u8Dt7UT5jJS_FuA"
@@ -323,7 +328,12 @@ class AstrologerAgent:
             "health": "Health prediction (हिंदी में)",
             "remedy": "Specific Vedic remedy (हिंदी में)",
             "lucky_color": "Color in Hindi",
-            "lucky_number": "Number"
+            "lucky_number": "Number",
+            "metadata": {
+                "title": "Clickbait YouTube Shorts Title (Hindi + English)",
+                "description": "2-line SEO description with hashtags",
+                "tags": "Comma separated viral tags"
+            }
         }}
         """
         return self._generate_script(rashi, date, "Daily", system_prompt, user_prompt)
@@ -348,8 +358,13 @@ class AstrologerAgent:
             "career": "Detailed Career & Business forecast",
             "money": "Financial opportunities & risks",
             "health": "Health warnings",
-            "remedy": "Major monthly remedy (Upay)",
-            "lucky_dates": "List of lucky dates"
+            "remedy": "Major monthly remedy (Upay) (हिंदी में)",
+            "lucky_dates": "List of lucky dates",
+            "metadata": {
+                "title": "Viral YouTube Video Title (Hindi + English)",
+                "description": "SEO description with hashtags",
+                "tags": "Comma separated viral tags"
+            }
         }}
         """
         return self._generate_script(rashi, month_year, "Monthly", system_prompt, user_prompt)
@@ -377,7 +392,12 @@ class AstrologerAgent:
             "money": "Wealth accumulation forecast (हिंदी में)",
             "health": "Major health periods (हिंदी में)",
             "remedy": "Maha-Upay (Grand Remedy) (हिंदी में)",
-            "lucky_months": "Best months of the year"
+            "lucky_months": "Best months of the year",
+            "metadata": {
+                "title": "Viral YouTube Video Title (Hindi + English)",
+                "description": "SEO description with hashtags",
+                "tags": "Comma separated viral tags"
+            }
         }}
         """
         return self._generate_script(rashi, year, "Yearly", system_prompt, user_prompt)
@@ -406,7 +426,12 @@ class AstrologerAgent:
             "remedy_detailed": "Step-by-step remedy instructions (हिंदी में)",
             "mantra": "A specific mantra to chant (हिंदी में)",
             "caution": "What NOT to do today (हिंदी में)",
-            "motivation": "Closing spiritual motivation (हिंदी में)"
+            "motivation": "Closing spiritual motivation (हिंदी में)",
+            "metadata": {
+                "title": "Clickbait YouTube Shorts Title (Hindi + English)",
+                "description": "2-line SEO description with hashtags",
+                "tags": "Comma separated viral tags"
+            }
         }}
         """
         return self._generate_script(rashi, date, "Daily_Remedy", system_prompt, user_prompt)

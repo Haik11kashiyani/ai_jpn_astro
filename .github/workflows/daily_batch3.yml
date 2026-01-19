@@ -31,15 +31,16 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps chromium
 
-      - name: Rate Limit Cooldown (4 Mins)
+      - name: Rate Limit Cooldown (5 Mins)
         run: |
-          echo "⏳ Waiting 4 minutes for rate limits..."
-          sleep 240
+          echo "⏳ Waiting 5 minutes for rate limits..."
+          sleep 300
 
       - name: Run Production Studio
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
+          OPENROUTER_API_KEY_BACKUP_2: ${{ secrets.OPENROUTER_API_KEY_BACKUP_2 }}
           GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}

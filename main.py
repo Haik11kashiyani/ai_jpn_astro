@@ -524,17 +524,19 @@ def main():
                 if os.path.exists(path):
                     print(f"\n🚀 Initiating Upload for {item['period']}...")
                     try:
-                        # Smart Pause: Wait 15s to let API cool down before Metadata call
-                        import time
-                        print("   ⏳ Cooling down for 15s before Metadata AI call...")
-                        time.sleep(15)
+                        # OPTIMIZATION: Extract Metadata directly from Script (1 API Call Total)
+                        script_data = item['script']
+                        meta = script_data.get("metadata", {})
                         
-                        # Use AI for metadata
-                        meta = agents['astrologer'].generate_viral_metadata(
-                            args.rashi, item['date'], item['period'], item['script']
-                        )
+                        # Validate metadata exists
+                        if not meta or "title" not in meta:
+                            print("⚠️ Metadata missing in script. Using local fallback.")
+                            meta = uploader.generate_metadata(args.rashi, item['date'], item['period'])
+                        else:
+                            print("✅ Using AI-generated metadata from script.")
+
                     except Exception as e:
-                        print(f"⚠️ AI Metadata Failed: {e}. Using fallback.")
+                        print(f"⚠️ Metadata extraction failed: {e}. Using fallback.")
                         meta = uploader.generate_metadata(args.rashi, item['date'], item['period'])
                     
                     if "categoryId" not in meta: meta["categoryId"] = "24"
