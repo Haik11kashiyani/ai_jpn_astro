@@ -31,10 +31,10 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps chromium
 
-      - name: Rate Limit Cooldown (5 Mins)
+      - name: Rate Limit Cooldown (4 Mins)
         run: |
-          echo "⏳ Waiting 5 minutes for rate limits..."
-          sleep 300
+          echo "⏳ Waiting 4 minutes for rate limits..."
+          sleep 240
 
       - name: Run Production Studio
         env:
