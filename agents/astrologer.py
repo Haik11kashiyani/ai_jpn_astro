@@ -329,11 +329,11 @@ class AstrologerAgent:
             "remedy": "Specific Vedic remedy (हिंदी में)",
             "lucky_color": "Color in Hindi",
             "lucky_number": "Number",
-            "metadata": {
+            "metadata": {{
                 "title": "Clickbait YouTube Shorts Title (Hindi + English)",
                 "description": "2-line SEO description with hashtags",
                 "tags": "Comma separated viral tags"
-            }
+            }}
         }}
         """
         return self._generate_script(rashi, date, "Daily", system_prompt, user_prompt)
@@ -360,11 +360,11 @@ class AstrologerAgent:
             "health": "Health warnings",
             "remedy": "Major monthly remedy (Upay) (हिंदी में)",
             "lucky_dates": "List of lucky dates",
-            "metadata": {
+            "metadata": {{
                 "title": "Viral YouTube Video Title (Hindi + English)",
                 "description": "SEO description with hashtags",
                 "tags": "Comma separated viral tags"
-            }
+            }}
         }}
         """
         return self._generate_script(rashi, month_year, "Monthly", system_prompt, user_prompt)
@@ -393,11 +393,11 @@ class AstrologerAgent:
             "health": "Major health periods (हिंदी में)",
             "remedy": "Maha-Upay (Grand Remedy) (हिंदी में)",
             "lucky_months": "Best months of the year",
-            "metadata": {
+            "metadata": {{
                 "title": "Viral YouTube Video Title (Hindi + English)",
                 "description": "SEO description with hashtags",
                 "tags": "Comma separated viral tags"
-            }
+            }}
         }}
         """
         return self._generate_script(rashi, year, "Yearly", system_prompt, user_prompt)
@@ -427,11 +427,11 @@ class AstrologerAgent:
             "mantra": "A specific mantra to chant (हिंदी में)",
             "caution": "What NOT to do today (हिंदी में)",
             "motivation": "Closing spiritual motivation (हिंदी में)",
-            "metadata": {
+            "metadata": {{
                 "title": "Clickbait YouTube Shorts Title (Hindi + English)",
                 "description": "2-line SEO description with hashtags",
                 "tags": "Comma separated viral tags"
-            }
+            }}
         }}
         """
         return self._generate_script(rashi, date, "Daily_Remedy", system_prompt, user_prompt)
