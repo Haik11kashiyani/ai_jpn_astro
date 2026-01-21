@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 from datetime import datetime
+import pytz
 
 from agents.astrologer import AstrologerAgent
 from agents.director import DirectorAgent
@@ -320,7 +321,9 @@ def main():
         'uploader': YouTubeUploader()
     }
     
-    today = datetime.now()
+    # Use IST timezone for correct Indian date (GitHub servers run in UTC)
+    ist = pytz.timezone('Asia/Kolkata')
+    today = datetime.now(ist)
     date_str = today.strftime("%d %B %Y")
     month_year = today.strftime("%B %Y")
     year_str = today.strftime("%Y")

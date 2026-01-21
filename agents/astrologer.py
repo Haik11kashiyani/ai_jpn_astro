@@ -251,7 +251,9 @@ class AstrologerAgent:
         if period_type.startswith("Metadata_"):
             # Extract the actual period type (e.g., "Metadata_Daily" -> "Daily")
             actual_period = period_type.replace("Metadata_", "")
-            today_str = datetime.now().strftime("%d %B %Y")
+            import pytz
+            ist = pytz.timezone('Asia/Kolkata')
+            today_str = datetime.now(ist).strftime("%d %B %Y")
             
             # Extract clean rashi name for title
             clean_rashi = rashi.split('(')[0].strip() if '(' in rashi else rashi
