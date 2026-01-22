@@ -496,7 +496,6 @@ def main():
             
             # Scheduling Logic (IST)
             # FORCE ALL UPLOADS TO 6:30 AM (User Request)
-            import pytz
             from datetime import timedelta
             ist = pytz.timezone('Asia/Kolkata')
             now_ist = datetime.now(ist)
