@@ -114,7 +114,12 @@ class EditorEngine:
         if period_type == "Monthly": folders.insert(0, "monthly_12_photos")
         elif period_type == "Yearly": folders.insert(0, "yearly_12_photos")
         
-        search_keys = [rashi_key, alt_key] if alt_key else [rashi_key]
+        # Translate using map if available (e.g. "vrushchik" -> "vrishchik")
+        mapped_key = RASHI_IMAGE_MAP.get(rashi_key, rashi_key)
+        
+        search_keys = [mapped_key, rashi_key, alt_key] if alt_key else [mapped_key, rashi_key]
+        # Remove empty strings and duplicates while preserving order
+        search_keys = list(dict.fromkeys(filter(None, search_keys)))
         
         for folder in folders:
             folder_path = os.path.join("assets", folder)
