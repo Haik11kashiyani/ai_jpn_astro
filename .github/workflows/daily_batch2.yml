@@ -1,9 +1,9 @@
-name: Daily Eto Fortune - Batch 2 (U, Tatsu, Mi)
+ame: Daily Eto Fortune - Batch 2 (U, Tatsu, Mi)
 on:
   workflow_dispatch:
   schedule:
-    # 6:00 AM JST = 21:00 UTC (previous day)
-    - cron: "0 21 * * *"
+    # 2:30 AM JST = 17:30 UTC (previous day) - Early generation for 6 AM upload
+    - cron: "30 17 * * *"
 
 jobs:
   produce-video:
@@ -31,16 +31,14 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps chromium
 
-      - name: Rate Limit Cooldown (4 Mins)
+      - name: Rate Limit Cooldown (2 Mins)
         run: |
-          echo "⏳ Waiting 4 minutes for rate limits..."
-          sleep 240
+          echo "⏳ Waiting 2 minutes between videos..."
+          sleep 120
 
       - name: Run Production Studio
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
-          OPENROUTER_API_KEY_BACKUP_2: ${{ secrets.OPENROUTER_API_KEY_BACKUP_2 }}
           GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}

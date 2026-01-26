@@ -476,12 +476,14 @@ def main():
             jst = pytz.timezone('Asia/Tokyo')
             now_jst = datetime.now(jst)
             
+            # Schedule for 6 AM JST *today* (we run at 2-3 AM)
             target_time = now_jst.replace(hour=6, minute=0, second=0, microsecond=0)
             
-            if now_jst > target_time:
+            # Only move to next day if we're already past 6 AM
+            if now_jst.hour >= 6:
                 target_time = target_time + timedelta(days=1)
                 
-            print(f"   📅 Target Upload Time: {target_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+            print(f"   📅 Scheduled Publish Time: {target_time.strftime('%Y-%m-%d %H:%M JST')} (in {int((target_time - now_jst).total_seconds() / 3600)} hours)")
 
             utc_publish_at = None
             if target_time:
