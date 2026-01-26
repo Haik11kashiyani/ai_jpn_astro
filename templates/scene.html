@@ -122,6 +122,24 @@
             }
         }
 
+        /* Border Pulsing Animation */
+        @keyframes borderPulse {
+            0% {
+                box-shadow: 0 10px 50px rgba(0, 0, 0, 0.6), inset 0 0 50px rgba(0, 0, 0, 0.1), 0 0 10px var(--glow, #8080ff);
+                border-color: rgba(200, 170, 130, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 10px 50px rgba(0, 0, 0, 0.6), inset 0 0 50px rgba(0, 0, 0, 0.1), 0 0 30px var(--glow, #8080ff);
+                border-color: var(--glow, #8080ff);
+            }
+
+            100% {
+                box-shadow: 0 10px 50px rgba(0, 0, 0, 0.6), inset 0 0 50px rgba(0, 0, 0, 0.1), 0 0 10px var(--glow, #8080ff);
+                border-color: rgba(200, 170, 130, 0.4);
+            }
+        }
+
         /* Overlay Vignette */
         #overlay-gradient {
             position: absolute;
@@ -216,7 +234,7 @@
             transform: translateX(-50%);
             width: 900px;
             min-height: 400px;
-            max-height: 900px;
+            max-height: 1000px;
             /* Prevent running off screen */
             text-align: center;
             color: #fff;
@@ -229,7 +247,7 @@
                     rgba(40, 35, 30, 0.92) 100%);
 
             /* Japanese scroll-like border */
-            border: 2px solid rgba(200, 170, 130, 0.2);
+            border: 2px solid rgba(200, 170, 130, 0.4);
             border-radius: 16px;
 
             /* Ink shadow effect */
@@ -237,11 +255,14 @@
                 0 10px 50px rgba(0, 0, 0, 0.6),
                 inset 0 0 50px rgba(0, 0, 0, 0.1);
 
+            /* Border Animation */
+            animation: borderPulse 4s infinite ease-in-out;
+
             /* Japanese typography */
-            font-size: 40px;
+            font-size: 36px;
             /* Reduced from 48px to fit more text */
             font-weight: 700;
-            line-height: 1.6;
+            line-height: 2.2;
             letter-spacing: 0.05em;
 
             padding: 50px 40px;
@@ -260,7 +281,7 @@
         .word {
             display: inline-block;
             opacity: 0.35;
-            margin: 0 12px;
+            margin: 10px 12px;
             transform-origin: center center;
             transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
