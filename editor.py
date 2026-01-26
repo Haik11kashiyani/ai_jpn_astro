@@ -320,6 +320,14 @@ class EditorEngine:
         logging.info(f"🎬 Assembling {len(scenes)} Japanese scenes...")
         final_video = run_concatenate(scenes) 
         
+        # --- ADD 0.5s END PADDING ---
+        try:
+            # Hold the last frame for 0.5 seconds
+            final_video = final_video.fx(vfx.freeze, t='end', freeze_duration=0.5)
+            logging.info(f"   ➕ Added 0.5s padding to end.")
+        except Exception as e:
+            logging.warning(f"Could not add end padding: {e}")
+
         # --- STRICT 59 SECOND LIMIT ---
         MAX_DURATION = 59.0
         if final_video.duration > MAX_DURATION:

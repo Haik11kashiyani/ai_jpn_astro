@@ -36,12 +36,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(
-                180deg,
-                var(--c1, #0a0a1a) 0%,
-                var(--c2, #1a1a3a) 50%,
-                var(--c3, #3a3a6a) 100%
-            );
+            background: linear-gradient(180deg,
+                    var(--c1, #0a0a1a) 0%,
+                    var(--c2, #1a1a3a) 50%,
+                    var(--c3, #3a3a6a) 100%);
             z-index: 1;
         }
 
@@ -52,10 +50,10 @@
             left: 0;
             width: 100%;
             height: 400px;
-            background-image: 
-                radial-gradient(circle at 50% 0%, transparent 25px, rgba(255,255,255,0.04) 26px, rgba(255,255,255,0.04) 27px, transparent 28px),
-                radial-gradient(circle at 0% 0%, transparent 25px, rgba(255,255,255,0.04) 26px, rgba(255,255,255,0.04) 27px, transparent 28px),
-                radial-gradient(circle at 100% 0%, transparent 25px, rgba(255,255,255,0.04) 26px, rgba(255,255,255,0.04) 27px, transparent 28px);
+            background-image:
+                radial-gradient(circle at 50% 0%, transparent 25px, rgba(255, 255, 255, 0.04) 26px, rgba(255, 255, 255, 0.04) 27px, transparent 28px),
+                radial-gradient(circle at 0% 0%, transparent 25px, rgba(255, 255, 255, 0.04) 26px, rgba(255, 255, 255, 0.04) 27px, transparent 28px),
+                radial-gradient(circle at 100% 0%, transparent 25px, rgba(255, 255, 255, 0.04) 26px, rgba(255, 255, 255, 0.04) 27px, transparent 28px);
             background-size: 50px 25px;
             background-position: 0 0, 25px 0, 50px 0;
             opacity: 0.6;
@@ -70,11 +68,10 @@
             width: 180px;
             height: 180px;
             border-radius: 50%;
-            background: radial-gradient(circle, 
-                rgba(255, 250, 235, 0.12) 0%, 
-                rgba(255, 250, 235, 0.04) 50%, 
-                transparent 70%
-            );
+            background: radial-gradient(circle,
+                    rgba(255, 250, 235, 0.12) 0%,
+                    rgba(255, 250, 235, 0.04) 50%,
+                    transparent 70%);
             box-shadow: 0 0 100px rgba(255, 250, 235, 0.1);
             z-index: 2;
         }
@@ -95,11 +92,10 @@
             position: absolute;
             width: 18px;
             height: 18px;
-            background: radial-gradient(ellipse at 30% 30%, 
-                rgba(255, 183, 197, 0.9) 0%, 
-                rgba(255, 143, 163, 0.7) 50%, 
-                transparent 70%
-            );
+            background: radial-gradient(ellipse at 30% 30%,
+                    rgba(255, 183, 197, 0.9) 0%,
+                    rgba(255, 143, 163, 0.7) 50%,
+                    transparent 70%);
             border-radius: 50% 0 50% 50%;
             opacity: 0;
             z-index: 3;
@@ -107,14 +103,21 @@
         }
 
         @keyframes sakuraFall {
-            0% { 
-                transform: translateY(-50px) rotate(0deg) translateX(0px); 
+            0% {
+                transform: translateY(-50px) rotate(0deg) translateX(0px);
                 opacity: 0;
             }
-            5% { opacity: 0.8; }
-            90% { opacity: 0.6; }
-            100% { 
-                transform: translateY(2000px) rotate(720deg) translateX(150px); 
+
+            5% {
+                opacity: 0.8;
+            }
+
+            90% {
+                opacity: 0.6;
+            }
+
+            100% {
+                transform: translateY(2000px) rotate(720deg) translateX(150px);
                 opacity: 0;
             }
         }
@@ -155,10 +158,14 @@
             text-align: center;
             font-size: 38px;
             font-weight: 700;
-            color: rgba(255, 255, 255, 0.75);
+            color: rgba(255, 255, 255, 0.9);
             letter-spacing: 4px;
             z-index: 10;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            padding: 0 40px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* ----------------------
@@ -166,7 +173,8 @@
            ---------------------- */
         #eto-container {
             position: absolute;
-            top: 200px;
+            top: 230px;
+            /* Increased from 200px for more space from date */
             left: 50%;
             transform: translateX(-50%);
             width: 480px;
@@ -202,45 +210,51 @@
            ---------------------- */
         #text-container {
             position: absolute;
-            top: 780px;
+            top: 800px;
+            /* Moved down slightly */
             left: 50%;
             transform: translateX(-50%);
             width: 900px;
             min-height: 400px;
+            max-height: 900px;
+            /* Prevent running off screen */
             text-align: center;
             color: #fff;
             z-index: 10;
-            
+
             /* Washi paper texture */
-            background: linear-gradient(135deg, 
-                rgba(40, 35, 30, 0.92) 0%, 
-                rgba(55, 50, 43, 0.88) 50%, 
-                rgba(40, 35, 30, 0.92) 100%
-            );
-            
+            background: linear-gradient(135deg,
+                    rgba(40, 35, 30, 0.92) 0%,
+                    rgba(55, 50, 43, 0.88) 50%,
+                    rgba(40, 35, 30, 0.92) 100%);
+
             /* Japanese scroll-like border */
             border: 2px solid rgba(200, 170, 130, 0.2);
             border-radius: 16px;
-            
+
             /* Ink shadow effect */
-            box-shadow: 
+            box-shadow:
                 0 10px 50px rgba(0, 0, 0, 0.6),
                 inset 0 0 50px rgba(0, 0, 0, 0.1);
-            
+
             /* Japanese typography */
-            font-size: 48px;
+            font-size: 40px;
+            /* Reduced from 48px to fit more text */
             font-weight: 700;
-            line-height: 1.8;
-            letter-spacing: 0.06em;
-            
-            padding: 60px 50px;
-            
+            line-height: 1.6;
+            letter-spacing: 0.05em;
+
+            padding: 50px 40px;
+
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             align-content: center;
-            
-            opacity: 0; /* Animated by GSAP */
+            overflow: hidden;
+            /* Hide overflow */
+
+            opacity: 0;
+            /* Animated by GSAP */
         }
 
         .word {
@@ -317,12 +331,12 @@
         // We'll split by spaces for the script-provided text, or by punctuation
         const container = document.getElementById('text-container');
         let words = text.split(/[\s]+/).filter(w => w.length > 0);
-        
+
         // If no spaces, try splitting by Japanese particles/punctuation for better karaoke
         if (words.length <= 1 && text.length > 10) {
             words = text.split(/([。、！？\s]+)/).filter(w => w.length > 0);
         }
-        
+
         container.innerHTML = words.map(w => `<span class="word">${w}</span>`).join(' ');
         const wordEls = document.querySelectorAll('.word');
 
@@ -330,7 +344,7 @@
         function createSakuraPetals() {
             const sakuraContainer = document.getElementById('sakura-container');
             const petalCount = 25;
-            
+
             for (let i = 0; i < petalCount; i++) {
                 const petal = document.createElement('div');
                 petal.className = 'sakura-petal';
@@ -369,51 +383,51 @@
         switch (animStyle) {
             case 'sakura':  // Cherry blossom - gentle falling reveal
                 tl.fromTo("#text-container", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1, ease: "power2.out" }, 0);
-                tl.fromTo(".word", { 
-                    opacity: 0, y: -35, rotation: -15 
-                }, { 
-                    opacity: 1, y: 0, rotation: 0, 
-                    duration: 0.7, stagger: 0.1, ease: "power2.out" 
+                tl.fromTo(".word", {
+                    opacity: 0, y: -35, rotation: -15
+                }, {
+                    opacity: 1, y: 0, rotation: 0,
+                    duration: 0.7, stagger: 0.1, ease: "power2.out"
                 }, 0.3);
                 break;
-                
+
             case 'ink':  // 書道 (Shodo) - Brush ink spreading
                 tl.fromTo("#text-container", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 0);
-                tl.fromTo(".word", { 
-                    opacity: 0, scale: 0.4, filter: "blur(12px)" 
-                }, { 
-                    opacity: 1, scale: 1, filter: "blur(0px)", 
-                    duration: 0.85, stagger: 0.09, ease: "expo.out" 
+                tl.fromTo(".word", {
+                    opacity: 0, scale: 0.4, filter: "blur(12px)"
+                }, {
+                    opacity: 1, scale: 1, filter: "blur(0px)",
+                    duration: 0.85, stagger: 0.09, ease: "expo.out"
                 }, 0.2);
                 break;
-                
+
             case 'zen':  // 禅 - Minimal, meditative fade
                 tl.fromTo("#text-container", { opacity: 0 }, { opacity: 1, duration: 1.5, ease: "sine.inOut" }, 0);
-                tl.fromTo(".word", { 
-                    opacity: 0 
-                }, { 
-                    opacity: 1, 
-                    duration: 1.5, stagger: 0.15, ease: "sine.inOut" 
+                tl.fromTo(".word", {
+                    opacity: 0
+                }, {
+                    opacity: 1,
+                    duration: 1.5, stagger: 0.15, ease: "sine.inOut"
                 }, 0.5);
                 break;
-                
+
             case 'wave':  // 波 - Flowing wave motion
                 tl.fromTo("#text-container", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, 0);
-                tl.fromTo(".word", { 
-                    opacity: 0, y: 30, x: -15 
-                }, { 
-                    opacity: 1, y: 0, x: 0, 
-                    duration: 0.55, stagger: { each: 0.08, from: "start" }, ease: "sine.out" 
+                tl.fromTo(".word", {
+                    opacity: 0, y: 30, x: -15
+                }, {
+                    opacity: 1, y: 0, x: 0,
+                    duration: 0.55, stagger: { each: 0.08, from: "start" }, ease: "sine.out"
                 }, 0.3);
                 break;
-                
+
             default:  // Fallback to sakura
                 tl.fromTo("#text-container", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1, ease: "power2.out" }, 0);
-                tl.fromTo(".word", { 
-                    opacity: 0, y: -30 
-                }, { 
-                    opacity: 1, y: 0, 
-                    duration: 0.6, stagger: 0.08, ease: "power2.out" 
+                tl.fromTo(".word", {
+                    opacity: 0, y: -30
+                }, {
+                    opacity: 1, y: 0,
+                    duration: 0.6, stagger: 0.08, ease: "power2.out"
                 }, 0.3);
                 break;
         }
