@@ -51,6 +51,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: batch4-${{ matrix.eto }}
+          name: videos-batch4
           path: outputs/*.mp4
           retention-days: 7
