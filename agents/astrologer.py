@@ -21,33 +21,28 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class AstrologerAgent:
     """
-    The Astrologer Agent uses LLMs to generate authentic Vedic Astrology content.
-    It acts like a knowledgeable Shastri (Astrologer).
-    Supports multiple API keys with automatic failover on rate limits.
-    Falls back to Google AI Studio (Gemini) when OpenRouter is exhausted.
+    The Astrologer Agent generates authentic Japanese Eto (干支) Fortune content.
+    Uses traditional systems: Eto, Kyusei Kigaku, Rokuyo, Gogyou (Five Elements).
+    Acts as 星野先生 (Hoshino-sensei), a renowned Japanese fortune teller.
     """
     
     def __init__(self, api_key: str = None, backup_key: str = None):
         """Initialize with OpenRouter API Keys (primary + backup) + Google AI fallback."""
         self.api_keys = []
         
-        # Primary key
         primary = api_key or os.getenv("OPENROUTER_API_KEY")
         if primary:
             self.api_keys.append(primary)
         
-        # Backup key 1
         backup = backup_key or os.getenv("OPENROUTER_API_KEY_BACKUP")
         if backup:
             self.api_keys.append(backup)
         
-        # Backup key 2 (3rd key for extra capacity)
         backup2 = os.getenv("OPENROUTER_API_KEY_BACKUP_2")
         if backup2:
             self.api_keys.append(backup2)
         
-        # Google AI key (fallback)
-        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY") or "AIzaSyDw8nEeFSWIajWJIL43u8Dt7UT5jJS_FuA"
+        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
             genai.configure(api_key=self.google_ai_key)
             self.google_model = genai.GenerativeModel('gemini-2.0-flash-exp')
@@ -94,9 +89,7 @@ class AstrologerAgent:
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             response = self.google_model.generate_content(full_prompt)
             
-            # Extract JSON from response
             text = response.text
-            # Clean up markdown code blocks if present
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0]
             elif "```" in text:
@@ -111,15 +104,11 @@ class AstrologerAgent:
             return None
 
     def get_best_free_models(self) -> list:
-        """
-        Fetches available models from OpenRouter, filters for free ones,
-        and ranks them based on heuristics (e.g. 'gemini', 'llama', '70b').
-        """
+        """Fetches and ranks free models from OpenRouter."""
         try:
             logging.info("🔎 Discovering best free models on OpenRouter...")
             response = requests.get("https://openrouter.ai/api/v1/models")
             if response.status_code != 200:
-                logging.warning("⚠️ Failed to fetch models list. Using defaults.")
                 return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
             
             all_models = response.json().get("data", [])
@@ -130,13 +119,6 @@ class AstrologerAgent:
                 if pricing.get("prompt") == "0" and pricing.get("completion") == "0":
                     free_models.append(m["id"])
             
-            # Smart Ranking Heuristics
-            # 1. Prefer 'gemini' (best for creative writing)
-            # 2. Prefer 'llama-3' (strong instruction following)
-            # 3. Prefer 'deepseek' (good reasoning)
-            # 4. Prefer larger models ('70b', 'flash')
-            # 5. Avoid tiny models ('nano', '1b', '3b')
-            
             scored_models = []
             for mid in free_models:
                 score = 0
@@ -146,46 +128,36 @@ class AstrologerAgent:
                 if "llama-3" in mid_lower: score += 8
                 if "deepseek" in mid_lower: score += 7
                 if "phi-4" in mid_lower: score += 6
-                
                 if "flash" in mid_lower: score += 3
                 if "exp" in mid_lower: score += 2
                 if "70b" in mid_lower: score += 2
-                
                 if "nano" in mid_lower or "1b" in mid_lower or "3b" in mid_lower: score -= 20
                 
                 scored_models.append((score, mid))
             
-            # Sort by score desc
             scored_models.sort(key=lambda x: x[0], reverse=True)
-            
-            best_models = [m[1] for m in scored_models[:5]] # Take top 5
+            best_models = [m[1] for m in scored_models[:5]]
             
             logging.info(f"✅ Selected Top Free Models: {best_models}")
-            if not best_models:
-                 return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
-                 
-            return best_models
+            return best_models if best_models else ["google/gemini-2.0-flash-exp:free"]
             
         except Exception as e:
             logging.error(f"⚠️ Model discovery failed: {e}")
-            # Fallback hardcoded list
             return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
 
-    def _generate_script(self, rashi: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
+    def _generate_script(self, eto: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
         """Helper to try models in rotation with key failover on rate limits."""
         errors = []
         tried_backup = False
         
         while True:
             for model in self.models:
-                # Rate Limit Protection: Wait 2 mins between calls (stays well under limits)
                 import time
                 logging.info(f"⏳ Rate Limit Guard: Waiting 2 minutes before API call...")
                 time.sleep(120)
                 
-                logging.info(f"🤖 Casting {period_type} chart using: {model}")
+                logging.info(f"🤖 Generating {period_type} fortune using: {model}")
                 try:
-                    # Try standard JSON mode first
                     try:
                         response = self.client.chat.completions.create(
                             model=model,
@@ -197,13 +169,12 @@ class AstrologerAgent:
                         )
                         raw_content = response.choices[0].message.content
                     except Exception as e:
-                        # If 400 Bad Request (likely JSON mode not supported by model), try Plain Text
                         if "400" in str(e):
                             logging.warning(f"⚠️ Model {model} rejected JSON mode. Retrying with Plain Text...")
                             response = self.client.chat.completions.create(
                                 model=model,
                                 messages=[
-                                    {"role": "system", "content": system_prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown, no preambles."},
+                                    {"role": "system", "content": system_prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown."},
                                     {"role": "user", "content": user_prompt}
                                 ]
                             )
@@ -211,7 +182,6 @@ class AstrologerAgent:
                         else:
                             raise e
 
-                    # Robust JSON cleanup (remove markdown ```json ... ```)
                     clean_json = raw_content.replace('```json', '').replace('```', '').strip()
                     return json.loads(clean_json)
                     
@@ -220,311 +190,277 @@ class AstrologerAgent:
                     logging.warning(f"⚠️ Model {model} failed: {e}")
                     errors.append(f"{model}: {error_str}")
                     
-                    # Check if it's a rate limit error (429)
                     if "429" in error_str or "rate limit" in error_str.lower():
-                        # Try switching to backup key
                         if not tried_backup and self._switch_to_backup_key():
                             logging.info("🔄 Rate limit hit! Retrying with backup key...")
                             tried_backup = True
-                            errors = []  # Reset errors for new key
-                            break  # Restart model loop with new key
+                            errors = []
+                            break
                     continue
             else:
-                # All models exhausted for current key
                 break
         
-        # FINAL FALLBACK: Try Google AI Studio
         logging.warning("⚠️ All OpenRouter models/keys exhausted. Trying Google AI fallback...")
         google_result = self._generate_with_google_ai(system_prompt, user_prompt)
         if google_result:
             return google_result
         
-        # CRITICAL: Do not use Mock Data for Production runs, as it ruins the channel.
-        raise Exception(f"❌ API Quota Exceeded for ALL keys. Cannot generate valid content for {rashi}.")
-        # return self._get_mock_data(rashi, period_type)
+        raise Exception(f"❌ API Quota Exceeded. Cannot generate content for {eto}.")
 
-    def _get_mock_data(self, rashi, period_type):
-        """Returns safe, pre-written content to allow testing when APIs are down."""
-        logging.warning(f"⚠️ RETURNING MOCK DATA FOR {rashi} ({period_type})")
+    def generate_daily_fortune(self, eto: str, date: str, rokuyo: dict, season: str, eto_info: dict) -> dict:
+        """Generates Daily Japanese Fortune (今日の運勢)."""
+        logging.info(f"✨ 星野先生: Generating Daily Fortune for {eto}...")
         
-        # Handle Metadata mock data (for YouTube uploads)
-        if period_type.startswith("Metadata_"):
-            # Extract the actual period type (e.g., "Metadata_Daily" -> "Daily")
-            actual_period = period_type.replace("Metadata_", "")
-            import pytz
-            ist = pytz.timezone('Asia/Kolkata')
-            today_str = datetime.now(ist).strftime("%d %B %Y")
-            
-            # Extract clean rashi name for title
-            clean_rashi = rashi.split('(')[0].strip() if '(' in rashi else rashi
-            
-            return {
-                "title": f"{clean_rashi} Rashifal {today_str} | आज का राशिफल 🔮 #shorts #viral",
-                "description": f"""🔮 {rashi} {actual_period} Rashifal - {today_str}
+        system_prompt = f"""
+You are 「星野先生」 (Hoshino-sensei), a renowned Japanese fortune teller (占い師) with 30+ years of experience.
+You are trained in authentic Japanese divination systems.
 
-आज का राशिफल देखें और जानें कि सितारे आपके लिए क्या कहते हैं!
+You MUST use these REAL Japanese astrology systems in your predictions:
 
-🌟 Topics Covered:
-- प्रेम और रिश्ते
-- करियर और व्यापार  
-- धन और वित्त
-- स्वास्थ्य
+1. **干支 (Eto)**: {eto_info['kanji']}年 ({eto_info['animal']}) - Element: {eto_info['element']}
+   - Personality: Based on traditional {eto_info['animal']} characteristics
+   - Compatible with: {', '.join(eto_info.get('compat', []))}
+   - Challenging with: {', '.join(eto_info.get('incompat', []))}
 
-#shorts #viral #rashifal #astrology #horoscope #jyotish #{clean_rashi.lower()} #dailyhoroscope #trending""",
-                "tags": [
-                    f"{clean_rashi.lower()} rashifal",
-                    "rashifal",
-                    "horoscope",
-                    "astrology",
-                    "shorts",
-                    "viral",
-                    "jyotish",
-                    "daily horoscope",
-                    "aaj ka rashifal",
-                    "zodiac",
-                    "trending"
-                ],
-                "categoryId": "24"
-            }
-        
-        if period_type == "Daily":
-            return {
-                "hook": f"{rashi} वालों, आज किस्मत का सितारा चमकेगा या बादलों में छिपेगा? {rashi} आज का राशिफल!",
-                "intro": "आज चंद्रमा की स्थिति आपके लिए नए अवसर ला रही है। ग्रहीय गोचर आपके पक्ष में संकेत दे रहे हैं।",
-                "love": "प्रेम संबंधों में आज मिठास बनी रहेगी। पुराने मतभेद सुलझने के आसार हैं।",
-                "career": "कार्यक्षेत्र में आपको नई जिम्मेदारियां मिल सकती हैं। सहकर्मियों का पूरा सहयोग मिलेगा।",
-                "money": "आर्थिक स्थिति सामान्य रहेगी। फिजूलखर्ची से बचें और निवेश सोच-समझकर करें।",
-                "health": "सेहत का ध्यान रखें, खासकर बदलते मौसम में। योग और ध्यान से लाभ होगा।",
-                "remedy": "आज हनुमान चालीसा का पाठ करें और लाल वस्तु का दान करें।",
-                "lucky_color": "लाल (Red)",
-                "lucky_number": "9"
-            }
-        return {
-            "hook": "Mock Data generated due to API Rate Limits.",
-            "intro": "Systems are currently offline, please check API quotas.",
-            "love": "Unavailable.", "career": "Unavailable.", "money": "Unavailable.",
-            "health": "Unavailable.", "remedy": "Check logs.", "lucky_date": "N/A"
-        }
+2. **六曜 (Rokuyo)**: Today is {rokuyo['name']} ({rokuyo['romaji']})
+   - Meaning: {rokuyo['meaning']}
+   - Best for: {rokuyo['best']}
+   - Avoid: {rokuyo['avoid']}
 
-    def generate_daily_rashifal(self, rashi: str, date: str) -> dict:
-        """Generates Daily Horoscope."""
-        logging.info(f"✨ Astrologer: Generating Daily Horoscope for {rashi}...")
-        
-        system_prompt = """
-        You are 'Rishiraj', an expert Vedic Astrologer. Tone: Mystical, Positive, Authoritative.
-        Write a DAILY Horoscope Script in PURE HINDI using DEVANAGARI SCRIPT (हिंदी लिपि).
-        CRITICAL: ALL text MUST be in Hindi script like "आज आपका दिन शुभ रहेगा", NOT Romanized like "Aaj aapka din shubh rahega".
-        Do NOT mention specific dates.
-        """
+3. **五行 (Gogyou/Five Elements)**: {eto_info['element'].upper()} energy dominant
+   - Water (水) creates Wood, controls Fire
+   - Wood (木) creates Fire, controls Earth
+   - Fire (火) creates Earth, controls Metal
+   - Earth (土) creates Metal, controls Water
+   - Metal (金) creates Water, controls Wood
+
+4. **季節 (Season)**: {season}
+
+CRITICAL RULES:
+- Write ALL content in NATURAL JAPANESE using Kanji, Hiragana, and Katakana
+- NO typos or grammatical errors in Japanese
+- Be specific with predictions - avoid generic statements
+- Use authentic fortune-telling terminology: 吉、凶、大吉、運気、開運、相性
+- Lucky items should be traditional Japanese items
+- Lucky colors should be stated in Japanese (赤、青、緑、etc.)
+- Lucky directions should use Japanese compass terms (東、西、南、北)
+
+Tone: Warm, mystical, encouraging, grounded in tradition.
+"""
         
         user_prompt = f"""
-        Generate a **Daily Horoscope** for **{rashi}** for {date}.
-        IMPORTANT: Write ALL content in DEVANAGARI SCRIPT (हिंदी), NOT Roman/English letters.
-        Return ONLY valid JSON:
-        {{
-            "hook": "Short attention grabber (हिंदी में)",
-            "intro": "Astrological context (हिंदी में)",
-            "love": "Love prediction (हिंदी में)",
-            "career": "Career prediction (हिंदी में)",
-            "money": "Financial prediction (हिंदी में)",
-            "health": "Health prediction (हिंदी में)",
-            "remedy": "Specific Vedic remedy (हिंदी में)",
-            "lucky_color": "Color in Hindi",
-            "lucky_number": "Number",
-            "metadata": {{
-                "title": "Clickbait YouTube Shorts Title (Hindi + English)",
-                "description": "2-line SEO description with hashtags",
-                "tags": "Comma separated viral tags"
-            }}
-        }}
-        """
-        return self._generate_script(rashi, date, "Daily", system_prompt, user_prompt)
+Generate a **Daily Fortune (今日の運勢)** for **{eto}** ({eto_info['kanji']}年) for **{date}**.
 
-    def generate_monthly_forecast(self, rashi: str, month_year: str) -> dict:
-        """Generates Monthly Horoscope (Detailed)."""
-        logging.info(f"✨ Astrologer: Generating Monthly Horoscope for {rashi} ({month_year})...")
+The fortune should reflect today's {rokuyo['name']} energy and give specific, actionable advice.
+
+Return ONLY valid JSON with this structure:
+{{
+    "hook": "Attention-grabbing opening (Japanese, 1-2 sentences, emotionally engaging)",
+    "cosmic_context": "Today's {rokuyo['name']} influence + seasonal energy (Japanese)",
+    "love": "恋愛運 - Love fortune with specific advice (Japanese)",
+    "career": "仕事運 - Work/career fortune with specific advice (Japanese)",
+    "money": "金運 - Financial fortune with specific advice (Japanese)",
+    "health": "健康運 - Health fortune with seasonal awareness (Japanese)",
+    "lucky_item": "Traditional Japanese lucky item (e.g., 招き猫、鈴、赤い糸)",
+    "lucky_color": "Color in Japanese (e.g., 赤、青、金)",
+    "lucky_direction": "Direction in Japanese (e.g., 東、南東)",
+    "lucky_number": "Number with brief meaning",
+    "omamori_advice": "What type of protection/action brings luck today (Japanese)",
+    "caution": "What to be careful about today (Japanese)",
+    "metadata": {{
+        "title": "Viral YouTube Shorts title - MUST include what video is about + {eto_info['kanji']}年 + emoji + #shorts (max 80 chars)",
+        "description": "Engaging description with 15-20 hashtags including #shorts #占い #今日の運勢 #干支占い",
+        "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "開運", "{rokuyo['name']}", "恋愛運", "金運", "仕事運"]
+    }}
+}}
+"""
+        return self._generate_script(eto, date, "Daily", system_prompt, user_prompt)
+
+    def generate_monthly_fortune(self, eto: str, month_year: str, eto_info: dict) -> dict:
+        """Generates Monthly Fortune (月間運勢)."""
+        logging.info(f"✨ 星野先生: Generating Monthly Fortune for {eto} ({month_year})...")
         
-        system_prompt = """
-        You are 'Rishiraj', an expert Vedic Astrologer. Tone: Detailed, Predictive, Guiding.
-        Write a MONTHLY Horoscope Script in PURE HINDI.
-        Focus on major planetary shifts (Sun transit, Moon phases).
-        """
+        system_prompt = f"""
+You are 「星野先生」 (Hoshino-sensei), a renowned Japanese fortune teller.
+You specialize in monthly predictions using 九星気学 (Kyusei Kigaku/Nine Star Ki).
+
+For {eto_info['kanji']}年 ({eto_info['animal']}):
+- Element: {eto_info['element']}
+- This month focuses on the flow of 気 (Ki/energy) throughout the month
+
+CRITICAL: Write ALL content in NATURAL JAPANESE with NO typos.
+Use formal but warm Japanese suitable for fortune-telling.
+"""
         
         user_prompt = f"""
-        Generate a **Monthly Horoscope** for **{rashi}** for **{month_year}**.
-        Return ONLY valid JSON:
-        {{
-            "hook": "Major theme of the month (Hindi)",
-            "intro": "Overview of the month & planetary changes",
-            "love": "Detailed Relationship forecast",
-            "career": "Detailed Career & Business forecast",
-            "money": "Financial opportunities & risks",
-            "health": "Health warnings",
-            "remedy": "Major monthly remedy (Upay) (हिंदी में)",
-            "lucky_dates": "List of lucky dates",
-            "metadata": {{
-                "title": "Viral YouTube Video Title (Hindi + English)",
-                "description": "SEO description with hashtags",
-                "tags": "Comma separated viral tags"
-            }}
-        }}
-        """
-        return self._generate_script(rashi, month_year, "Monthly", system_prompt, user_prompt)
+Generate a **Monthly Fortune (月間運勢)** for **{eto}** ({eto_info['kanji']}年) for **{month_year}**.
 
-    def generate_yearly_forecast(self, rashi: str, year: str) -> dict:
-        """Generates Yearly 2025+ Horoscope (Grand)."""
-        logging.info(f"✨ Astrologer: Generating Yearly Horoscope for {rashi} ({year})...")
+Return ONLY valid JSON:
+{{
+    "hook": "Compelling monthly theme hook (Japanese)",
+    "cosmic_context": "This month's energy overview (Japanese)",
+    "love": "恋愛運 - Monthly love forecast with key dates (Japanese)",
+    "career": "仕事運 - Monthly career forecast with opportunities (Japanese)",
+    "money": "金運 - Monthly financial forecast (Japanese)",
+    "health": "健康運 - Monthly health focus (Japanese)",
+    "lucky_dates": "Best dates this month (list in Japanese)",
+    "caution_dates": "Challenging dates to be careful (Japanese)",
+    "monthly_advice": "Overall advice for the month (Japanese)",
+    "lucky_item": "Monthly power item (Japanese)",
+    "lucky_color": "Monthly lucky color (Japanese)",
+    "metadata": {{
+        "title": "Monthly title with 月間運勢 + {eto_info['kanji']}年 + {month_year} + emoji + #shorts",
+        "description": "Monthly description with hashtags",
+        "tags": ["shorts", "月間運勢", "占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル"]
+    }}
+}}
+"""
+        return self._generate_script(eto, month_year, "Monthly", system_prompt, user_prompt)
+
+    def generate_yearly_fortune(self, eto: str, year: str, eto_info: dict) -> dict:
+        """Generates Yearly Fortune (年間運勢)."""
+        logging.info(f"✨ 星野先生: Generating Yearly Fortune for {eto} ({year})...")
         
-        system_prompt = """
-        You are 'Rishiraj', the Grand Vedic Astrologer. Tone: Epic, Visionary, Comprehensive.
-        Write a YEARLY 'Varshiphal' Script in PURE HINDI using DEVANAGARI SCRIPT (हिंदी लिपि).
-        CRITICAL: ALL text MUST be in Hindi script like "आज आपका दिन शुभ रहेगा", NOT Romanized like "Aaj aapka din shubh rahega".
-        Focus on Jupiter (Guru), Saturn (Shani), and Rahu/Ketu transits.
-        """
+        system_prompt = f"""
+You are 「星野先生」 (Hoshino-sensei), Japan's most respected fortune teller.
+You are making the GRAND YEARLY PREDICTION for {year}年.
+
+For {eto_info['kanji']}年 ({eto_info['animal']}):
+- Element: {eto_info['element']}
+- Focus on major life themes, transformations, and opportunities
+
+Use a grand, prophetic tone while remaining warm and encouraging.
+CRITICAL: Write ALL content in NATURAL JAPANESE with NO typos.
+"""
         
         user_prompt = f"""
-        Generate a **Yearly Horoscope** for **{rashi}** for the year **{year}**.
-        IMPORTANT: Write ALL content in DEVANAGARI SCRIPT (हिंदी), NOT Roman/English letters.
-        Return ONLY valid JSON:
-        {{
-            "hook": "The biggest theme of the year (हिंदी में)",
-            "intro": "Grand overview of {year} for this sign (हिंदी में)",
-            "love": "Love life analysis (हिंदी में)",
-            "career": "Career growth analysis (हिंदी में)",
-            "money": "Wealth accumulation forecast (हिंदी में)",
-            "health": "Major health periods (हिंदी में)",
-            "remedy": "Maha-Upay (Grand Remedy) (हिंदी में)",
-            "lucky_months": "Best months of the year",
-            "metadata": {{
-                "title": "Viral YouTube Video Title (Hindi + English)",
-                "description": "SEO description with hashtags",
-                "tags": "Comma separated viral tags"
-            }}
-        }}
-        """
-        return self._generate_script(rashi, year, "Yearly", system_prompt, user_prompt)
+Generate a **Yearly Fortune (年間運勢)** for **{eto}** ({eto_info['kanji']}年) for **{year}年**.
 
-    def generate_daily_remedy_script(self, rashi: str, date: str) -> dict:
-        """Generates a detailed Daily Remedy (Upay) deep-dive script (Evening Content)."""
-        logging.info(f"✨ Astrologer: Generating Daily Remedy Deep Dive for {rashi}...")
+Return ONLY valid JSON:
+{{
+    "hook": "Grand yearly theme revelation (Japanese, impactful)",
+    "cosmic_context": "{year}年's cosmic energy for {eto_info['kanji']}年 (Japanese)",
+    "love": "恋愛運 - Year's love destiny (Japanese)",
+    "career": "仕事運 - Year's career trajectory (Japanese)",
+    "money": "金運 - Year's wealth potential (Japanese)",
+    "health": "健康運 - Year's health focus (Japanese)",
+    "lucky_months": "Best months of the year (Japanese)",
+    "challenge_months": "Months requiring caution (Japanese)",
+    "yearly_theme": "The single most important theme for {year} (Japanese)",
+    "power_word": "Your power word for {year} (Japanese kanji with meaning)",
+    "metadata": {{
+        "title": "Yearly title with 年間運勢 + {year}年 + {eto_info['kanji']}年 + grand emoji + #shorts",
+        "description": "Yearly description with hashtags",
+        "tags": ["shorts", "年間運勢", "{year}年運勢", "占い", "{eto_info['kanji']}年"]
+    }}
+}}
+"""
+        return self._generate_script(eto, year, "Yearly", system_prompt, user_prompt)
+
+    def generate_daily_advice(self, eto: str, date: str, rokuyo: dict, eto_info: dict) -> dict:
+        """Generates Daily Advice/Remedy (開運アドバイス)."""
+        logging.info(f"✨ 星野先生: Generating Daily Advice for {eto}...")
         
-        system_prompt = """
-        You are 'Acharya Rishiraj', an expert in Vedic Remedies (Lal Kitab & Puranic).
-        Tone: Empathetic, Spiritual, Problem-Solving.
-        Write in PURE HINDI using DEVANAGARI SCRIPT (हिंदी लिपि).
-        CRITICAL: ALL text MUST be in Hindi script like "आज आपका दिन शुभ रहेगा", NOT Romanized.
-        Write a DETAILED, 2-minute script focusing ONLY on a specific remedy for the day.
-        """
+        system_prompt = f"""
+You are 「星野先生」 (Hoshino-sensei), specializing in 開運 (fortune improvement) advice.
+
+Today is {rokuyo['name']} ({rokuyo['romaji']}): {rokuyo['meaning']}
+
+For {eto_info['kanji']}年 ({eto_info['animal']}):
+Provide specific, actionable advice to improve fortune today.
+
+CRITICAL: Write ALL content in NATURAL JAPANESE with NO typos.
+"""
         
         user_prompt = f"""
-        Generate a **Daily Remedy Deep Dive** for **{rashi}** for **{date}**.
-        Focus on ONE major problem people of this sign might face today and provide a powerful remedy.
-        IMPORTANT: Write ALL content in DEVANAGARI SCRIPT (हिंदी), NOT Roman/English letters.
-        
-        Return ONLY valid JSON:
-        {{
-            "hook": "Emotional hook (हिंदी में)",
-            "intro": "Why this problem is happening today (हिंदी में)",
-            "remedy_detailed": "Step-by-step remedy instructions (हिंदी में)",
-            "mantra": "A specific mantra to chant (हिंदी में)",
-            "caution": "What NOT to do today (हिंदी में)",
-            "motivation": "Closing spiritual motivation (हिंदी में)",
-            "metadata": {{
-                "title": "Clickbait YouTube Shorts Title (Hindi + English)",
-                "description": "2-line SEO description with hashtags",
-                "tags": "Comma separated viral tags"
-            }}
-        }}
-        """
-        return self._generate_script(rashi, date, "Daily_Remedy", system_prompt, user_prompt)
+Generate **Daily Advice (開運アドバイス)** for **{eto}** ({eto_info['kanji']}年) for **{date}**.
 
-    def generate_viral_metadata(self, rashi: str, date_str: str, period_type: str, script_data) -> dict:
-        """
-        Generates Viral YouTube Metadata (Title, Desc, Tags) using the LLM.
-        This provides fully dynamic, content-aware metadata instead of static templates.
-        """
-        logging.info(f"🚀 Astrologer: Generating Viral Metadata for {rashi} ({period_type})...")
+Focus on ONE specific problem and provide detailed solution.
+
+Return ONLY valid JSON:
+{{
+    "hook": "Emotional hook about today's challenge (Japanese)",
+    "problem": "What {eto_info['kanji']}年 people might face today (Japanese)",
+    "solution": "Step-by-step advice to overcome it (Japanese)",
+    "morning_ritual": "Morning practice for good luck (Japanese)",
+    "evening_ritual": "Evening practice for balance (Japanese)",
+    "power_phrase": "Phrase to repeat today (Japanese)",
+    "avoid": "What to definitely avoid today (Japanese)",
+    "lucky_item": "Item that helps today (Japanese)",
+    "lucky_color": "Color that helps today (Japanese)",
+    "metadata": {{
+        "title": "Advice title with 開運 + specific topic + {eto_info['kanji']}年 + #shorts",
+        "description": "Advice description with hashtags",
+        "tags": ["shorts", "開運", "アドバイス", "占い", "{eto_info['kanji']}年"]
+    }}
+}}
+"""
+        return self._generate_script(eto, date, "Daily_Advice", system_prompt, user_prompt)
+
+    def generate_viral_metadata(self, eto: str, date_str: str, period_type: str, script_data, eto_info: dict) -> dict:
+        """Generates Viral YouTube Metadata dynamically."""
+        logging.info(f"🚀 星野先生: Generating Viral Metadata for {eto} ({period_type})...")
         
-        # Handle script_data being a list (unwrap single-item lists)
         if isinstance(script_data, list):
-            if len(script_data) > 0 and isinstance(script_data[0], dict):
-                script_data = script_data[0]
-            else:
-                script_data = {}
+            script_data = script_data[0] if script_data else {}
         
-        # Safely extract context
+        context = ""
         if isinstance(script_data, dict):
-            context = f"Hook: {script_data.get('hook', '')}. Theme: {script_data.get('intro', '')}"
-        else:
-            context = "Daily horoscope prediction"
+            context = f"Hook: {script_data.get('hook', '')}. Theme: {script_data.get('cosmic_context', '')}"
         
         system_prompt = """
-        You are a YouTube Growth Hacker & Viral Content Strategist.
-        Your goal is to WRITE HIGH-CTR, SEO-OPTIMIZED METADATA.
-        
-        RULES FOR TITLES:
-        1. **CLEAN & SHOCKING**: Use punchy Hindi/English mix. "Mesh Rashifal: BIG NEWS"
-        2. **MINIMAL EMOJIS**: Use MAX 1 emoji at the very end. Do NOT spam emojis in the title.
-        3. **NO CLICKBAIT SPAM**: Avoid "😱😱😱". Use words like "सच्चाई" (Truth), "चमत्कार" (Miracle), "सावधान" (Beware).
-        
-        RULES FOR DESCRIPTION & TAGS:
-        1. **DYNAMIC HASHTAGS**: Generate hashtags based on the specific prediction (e.g., #money, #love, #shani).
-        2. **TRENDING TAGS**: ALWAYS include these high-volume tags: #astrology #rashifal #horoscope #jyotish #zodiac #dailyhoroscope #shorts #viral
-        3. **MAXIMIZE TAGS**: Fill the description with 15-20 relevant hashtags mixed with keywords.
-        """
-        
-        # Current Trending Keywords for 2026/Astro
-        trending_keywords = "2026, Saturn Transit, Shani Gochar, Guru Gochar, Rahu Ketu, Love Life, Money Healing"
+You are a YouTube Shorts viral content strategist for Japanese fortune-telling (占い).
+
+Your goal: Create IRRESISTIBLE, CLICKABLE metadata that gets views.
+
+TITLE RULES (CRITICAL):
+1. Start with attention emoji (🔥⚠️💰💕✨🌟😱)
+2. Describe WHAT THIS VIDEO reveals (not generic)
+3. Include Eto name in Japanese (子年, 丑年, etc.)
+4. MUST end with #shorts
+5. Max 80 characters
+6. Use curiosity gaps: "〇〇年さん注意！", "〇〇年に大ニュース！"
+
+DESCRIPTION RULES:
+1. First line = Curiosity hook
+2. Include fortune categories covered
+3. End with 15-20 viral hashtags
+4. Always include: #shorts #占い #今日の運勢 #干支占い
+
+NO TYPOS in Japanese text.
+"""
         
         user_prompt = f"""
-        Generate YouTube Metadata for a **{period_type}** video.
-        **Rashi**: {rashi}
-        **Date**: {date_str}
-        **Content Highlight**: {context}
-        **Trending Context**: {trending_keywords}
+Generate YouTube Metadata for a **{period_type}** fortune video.
+**Eto**: {eto} ({eto_info['kanji']}年)
+**Date**: {date_str}
+**Content Highlight**: {context}
+
+Return ONLY valid JSON:
+{{
+    "title": "Viral title (Japanese + emoji, MUST end with #shorts, max 80 chars)",
+    "description": "Engaging description ending with 15-20 hashtags",
+    "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", ...]
+}}
+"""
         
-        Return ONLY valid JSON:
-        {{
-            "title": "Creative, Punchy Title (Max 80 chars). {rashi} {date_str}. Ends with 1 relevant emoji.",
-            "description": "Engaging summary in Hindi/English. Must include sections: '✨ Prediction', '🌟 Lucky Number/Color'. END with a block of 20+ viral hashtags (Dynamic + Trending).",
-            "tags": ["List of 25+ high-volume tags. Mix broad (#astrology) and specific (#{rashi.lower()}rashifal)"]
-        }}
-        """
+        result = self._generate_script(eto, date_str, f"Metadata_{period_type}", system_prompt, user_prompt)
         
-        # Generate and validate
-        result = self._generate_script(rashi, date_str, f"Metadata_{period_type}", system_prompt, user_prompt)
-        
-        # Handle list result (unwrap if needed)
         if isinstance(result, list):
-            if len(result) > 0 and isinstance(result[0], dict):
-                result = result[0]
-            else:
-                # Fail hard on metadata too
-                raise Exception(f"Metadata generation failed (Quota). Stopping upload for {rashi}.")
+            result = result[0] if result else {}
         
-        # Validate required keys exist
         if not isinstance(result, dict) or 'title' not in result:
-            logging.warning("⚠️ Invalid metadata result.")
             raise Exception("Invalid metadata generated.")
         
-        # CRITICAL: Programmatically ensure #shorts #viral is ALWAYS in title
+        # Ensure #shorts is in title
         title = result.get('title', '')
         if '#shorts' not in title.lower():
-            # Trim title if needed to add hashtags
-            if len(title) > 80:
-                title = title[:77] + "..."
-            title = title.rstrip() + " #shorts #viral"
-        elif '#viral' not in title.lower():
-            title = title.rstrip() + " #viral"
+            if len(title) > 70:
+                title = title[:67] + "..."
+            title = title.rstrip() + " #shorts"
         result['title'] = title
         
-        # Ensure categoryId exists
         if 'categoryId' not in result:
             result['categoryId'] = '24'
             
         return result
-
-# Test Run (Uncomment to test)
-# if __name__ == "__main__":
-#     agent = AstrologerAgent()
-#     print(json.dumps(agent.generate_daily_rashifal("Kumbh (Aquarius)", "2024-12-21"), indent=2, ensure_ascii=False))

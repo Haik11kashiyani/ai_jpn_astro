@@ -1,301 +1,424 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1080, height=1920, initial-scale=1.0">
-    <title>Video Scene</title>
+    <title>Japanese Fortune Scene</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             padding: 0;
             width: 1080px;
             height: 1920px;
             overflow: hidden;
-            font-family: 'Noto Sans Devanagari', sans-serif;
+            font-family: 'Noto Sans JP', 'Zen Maru Gothic', sans-serif;
             background: #000;
         }
 
         /* ----------------------
-           DYNAMIC BACKGROUND
+           JAPANESE BACKGROUND LAYERS
            ---------------------- */
-        .bg-layer {
+        .bg-gradient {
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            border-radius: 40%;
-            filter: blur(80px);
-            opacity: 0.6;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                180deg,
+                var(--c1, #0a0a1a) 0%,
+                var(--c2, #1a1a3a) 50%,
+                var(--c3, #3a3a6a) 100%
+            );
             z-index: 1;
-            mix-blend-mode: screen;
         }
 
-        #bg1 {
-            background: linear-gradient(135deg, var(--c1, #303060), var(--c2, #202040));
-            animation: float 20s infinite alternate;
+        /* 青海波 (Seigaiha) Wave Pattern */
+        .wave-pattern {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 400px;
+            background-image: 
+                radial-gradient(circle at 50% 0%, transparent 25px, rgba(255,255,255,0.04) 26px, rgba(255,255,255,0.04) 27px, transparent 28px),
+                radial-gradient(circle at 0% 0%, transparent 25px, rgba(255,255,255,0.04) 26px, rgba(255,255,255,0.04) 27px, transparent 28px),
+                radial-gradient(circle at 100% 0%, transparent 25px, rgba(255,255,255,0.04) 26px, rgba(255,255,255,0.04) 27px, transparent 28px);
+            background-size: 50px 25px;
+            background-position: 0 0, 25px 0, 50px 0;
+            opacity: 0.6;
+            z-index: 2;
         }
 
-        #bg2 {
-            background: radial-gradient(circle at center, var(--c2, #202040), var(--c3, #151525));
-            animation: float 25s infinite alternate-reverse;
-            left: -30%;
+        /* Moon / Enso (円相) Circle */
+        .enso-moon {
+            position: absolute;
+            top: 80px;
+            right: 60px;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, 
+                rgba(255, 250, 235, 0.12) 0%, 
+                rgba(255, 250, 235, 0.04) 50%, 
+                transparent 70%
+            );
+            box-shadow: 0 0 100px rgba(255, 250, 235, 0.1);
+            z-index: 2;
         }
 
-        #bg3 {
-            background: linear-gradient(to bottom right, var(--glow, #FFD700), transparent);
-            opacity: 0.4;
-            animation: float 18s infinite alternate;
-            top: -30%;
+        /* Sakura Petals Container */
+        #sakura-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 3;
+            pointer-events: none;
         }
 
-        @keyframes float {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
+        .sakura-petal {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: radial-gradient(ellipse at 30% 30%, 
+                rgba(255, 183, 197, 0.9) 0%, 
+                rgba(255, 143, 163, 0.7) 50%, 
+                transparent 70%
+            );
+            border-radius: 50% 0 50% 50%;
+            opacity: 0;
+            z-index: 3;
+            animation: sakuraFall linear infinite;
+        }
+
+        @keyframes sakuraFall {
+            0% { 
+                transform: translateY(-50px) rotate(0deg) translateX(0px); 
+                opacity: 0;
             }
-
-            100% {
-                transform: translate(100px, 50px) rotate(20deg);
+            5% { opacity: 0.8; }
+            90% { opacity: 0.6; }
+            100% { 
+                transform: translateY(2000px) rotate(720deg) translateX(150px); 
+                opacity: 0;
             }
         }
 
+        /* Overlay Vignette */
         #overlay-gradient {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.9) 100%);
-            z-index: 2;
+            background: radial-gradient(circle at 50% 40%, transparent 30%, rgba(0, 0, 0, 0.7) 100%);
+            z-index: 4;
         }
 
+        /* Noise Texture for Film Grain */
         #particles {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-            z-index: 3;
-            opacity: 0.3;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+            z-index: 5;
+            opacity: 0.4;
             mix-blend-mode: overlay;
+            pointer-events: none;
         }
 
         /* ----------------------
-           RASHI IMAGE CONTAINER
+           HEADER TEXT
            ---------------------- */
-        #rashi-container {
+        #header-text {
             position: absolute;
-            top: 220px;
+            top: 70px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 38px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.75);
+            letter-spacing: 4px;
+            z-index: 10;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* ----------------------
+           ETO ANIMAL IMAGE CONTAINER
+           ---------------------- */
+        #eto-container {
+            position: absolute;
+            top: 200px;
             left: 50%;
             transform: translateX(-50%);
-            width: 500px;
-            height: 500px;
-            z-index: 5;
+            width: 480px;
+            height: 480px;
+            z-index: 8;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        #rashi-image {
+        #eto-image {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+            filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.5));
             border-radius: 50%;
-            border: 4px solid rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.1);
         }
 
-        .aura-circle {
+        .glow-ring {
             position: absolute;
-            width: 520px;
-            height: 520px;
+            width: 510px;
+            height: 510px;
             border-radius: 50%;
-            border: 2px solid var(--glow, #FFD700);
-            box-shadow: 0 0 40px var(--glow, #FFD700), inset 0 0 20px var(--glow, #FFD700);
-            opacity: 0.0;
-            /* Controlled by GSAP */
-            z-index: 4;
+            border: 2px solid var(--glow, #8080ff);
+            box-shadow: 0 0 50px var(--glow, #8080ff), inset 0 0 25px var(--glow, #8080ff);
+            opacity: 0;
+            z-index: 7;
         }
 
         /* ----------------------
-           TEXT CONTAINER
+           TEXT CONTAINER (和紙 Washi Paper Style)
            ---------------------- */
         #text-container {
             position: absolute;
-            top: 850px;
+            top: 780px;
             left: 50%;
             transform: translateX(-50%);
-            width: 850px;
+            width: 900px;
+            min-height: 400px;
             text-align: center;
             color: #fff;
             z-index: 10;
-            font-size: 56px;
+            
+            /* Washi paper texture */
+            background: linear-gradient(135deg, 
+                rgba(40, 35, 30, 0.92) 0%, 
+                rgba(55, 50, 43, 0.88) 50%, 
+                rgba(40, 35, 30, 0.92) 100%
+            );
+            
+            /* Japanese scroll-like border */
+            border: 2px solid rgba(200, 170, 130, 0.2);
+            border-radius: 16px;
+            
+            /* Ink shadow effect */
+            box-shadow: 
+                0 10px 50px rgba(0, 0, 0, 0.6),
+                inset 0 0 50px rgba(0, 0, 0, 0.1);
+            
+            /* Japanese typography */
+            font-size: 48px;
             font-weight: 700;
-            line-height: 1.6;
-            perspective: 1000px;
-            /* Enable 3D GSAP effects */
-
-            /* Glassmorphism */
-            background: rgba(25, 25, 35, 0.6);
-            backdrop-filter: blur(30px);
-            padding: 80px 60px;
-            border-radius: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
-
+            line-height: 1.8;
+            letter-spacing: 0.06em;
+            
+            padding: 60px 50px;
+            
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             align-content: center;
-            opacity: 0;
-            /* JS Fade In */
+            
+            opacity: 0; /* Animated by GSAP */
         }
 
         .word {
             display: inline-block;
-            opacity: 0.4;
-            margin: 0 16px;
+            opacity: 0.35;
+            margin: 0 12px;
             transform-origin: center center;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .word.active {
             opacity: 1 !important;
-            transform: scale(1.4) !important;
-            color: var(--glow, #FFD700) !important;
-            text-shadow: 0 0 40px var(--glow, #FFD700) !important;
-            filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.8));
-        }
-
-        #header-text {
-            position: absolute;
-            top: 80px;
-            width: 100%;
-            text-align: center;
-            font-size: 42px;
-            font-weight: bold;
-            color: rgba(255, 255, 255, 0.7);
-            letter-spacing: 2px;
-            z-index: 8;
-            text-transform: uppercase;
+            transform: scale(1.35) !important;
+            color: var(--glow, #ffd700) !important;
+            text-shadow: 0 0 40px var(--glow, #ffd700), 0 0 80px var(--glow, #ffd700) !important;
+            filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.8));
         }
     </style>
 </head>
 
 <body>
-    <div class="bg-layer" id="bg1"></div>
-    <div class="bg-layer" id="bg2"></div>
-    <div class="bg-layer" id="bg3"></div>
+    <!-- Japanese Background Layers -->
+    <div class="bg-gradient"></div>
+    <div class="wave-pattern"></div>
+    <div class="enso-moon"></div>
+    <div id="sakura-container"></div>
     <div id="overlay-gradient"></div>
     <div id="particles"></div>
 
+    <!-- Header: 今日の運勢 -->
     <div id="header-text"></div>
 
-    <div id="rashi-container">
-        <div class="aura-circle"></div>
-        <img id="rashi-image" src="" alt="Rashi">
+    <!-- Eto Animal Image -->
+    <div id="eto-container">
+        <div class="glow-ring"></div>
+        <img id="eto-image" src="" alt="Eto Animal">
     </div>
 
+    <!-- Fortune Text (Washi Paper Style) -->
     <div id="text-container">
-        <!-- Text injected by JS -->
+        <!-- Japanese words injected by JS -->
     </div>
 
     <script>
-        // --- PARAMS ---
+        // --- URL PARAMS ---
         const urlParams = new URLSearchParams(window.location.search);
-        const rashiImg = urlParams.get('img');
+        const etoImg = urlParams.get('img');
         const text = urlParams.get('text') || "";
         const header = urlParams.get('header') || "";
-        const c1 = urlParams.get('c1') || "#303060";
-        const c2 = urlParams.get('c2') || "#202040";
-        const c3 = urlParams.get('c3') || "#101020";
-        const glow = urlParams.get('glow') || "#FFD700";
+        const c1 = urlParams.get('c1') || "#0a0a1a";
+        const c2 = urlParams.get('c2') || "#1a1a3a";
+        const c3 = urlParams.get('c3') || "#3a3a6a";
+        const glow = urlParams.get('glow') || "#8080ff";
+        const animStyle = urlParams.get('anim') || 'sakura';
 
         // --- SETUP ---
-        if (rashiImg) document.getElementById('rashi-image').src = rashiImg;
+        if (etoImg) document.getElementById('eto-image').src = etoImg;
 
-        // Header Logic - Fixed for Hindi (No Char Splitting)
+        // Header
         if (header) {
             const headerEl = document.getElementById('header-text');
             headerEl.textContent = header;
             gsap.set(headerEl, { opacity: 0 });
-            gsap.to(headerEl, { opacity: 1, duration: 1, delay: 0.2 });
+            gsap.to(headerEl, { opacity: 1, duration: 1.2, delay: 0.1, ease: "power2.out" });
         }
 
+        // Set CSS Variables
         document.documentElement.style.setProperty('--c1', c1);
         document.documentElement.style.setProperty('--c2', c2);
         document.documentElement.style.setProperty('--c3', c3);
         document.documentElement.style.setProperty('--glow', glow);
 
+        // Parse Japanese text into words (split by spaces, but Japanese usually doesn't have spaces)
+        // We'll split by spaces for the script-provided text, or by punctuation
         const container = document.getElementById('text-container');
-        const words = text.split(' ').filter(w => w.length > 0);
+        let words = text.split(/[\s]+/).filter(w => w.length > 0);
+        
+        // If no spaces, try splitting by Japanese particles/punctuation for better karaoke
+        if (words.length <= 1 && text.length > 10) {
+            words = text.split(/([。、！？\s]+)/).filter(w => w.length > 0);
+        }
+        
         container.innerHTML = words.map(w => `<span class="word">${w}</span>`).join(' ');
         const wordEls = document.querySelectorAll('.word');
 
-        const animStyle = urlParams.get('anim') || 'premium';
+        // --- SAKURA PETALS GENERATION ---
+        function createSakuraPetals() {
+            const sakuraContainer = document.getElementById('sakura-container');
+            const petalCount = 25;
+            
+            for (let i = 0; i < petalCount; i++) {
+                const petal = document.createElement('div');
+                petal.className = 'sakura-petal';
+                petal.style.left = (Math.random() * 100) + '%';
+                petal.style.animationDelay = (Math.random() * 15) + 's';
+                petal.style.animationDuration = (12 + Math.random() * 10) + 's';
+                petal.style.transform = `scale(${0.6 + Math.random() * 0.6})`;
+                sakuraContainer.appendChild(petal);
+            }
+        }
+        createSakuraPetals();
 
-        // --- GSAP ANIMATION PRESETS ---
+        // --- GSAP ANIMATION TIMELINE ---
         const tl = gsap.timeline({ paused: true });
 
-        // Common: Background Rotation
-        tl.to(".bg-layer", {
-            rotation: 360,
-            scale: 1.5,
-            duration: 60,
-            ease: "none"
-        }, 0);
-
-        // Common: Rashi Float
-        tl.to("#rashi-container", {
-            y: -30,
+        // Common: Eto Image Float
+        tl.to("#eto-container", {
+            y: -25,
             duration: 4,
             repeat: 15,
             yoyo: true,
             ease: "sine.inOut"
         }, 0);
 
-        // Common: Aura Pulse
-        tl.to(".aura-circle", {
-            opacity: 0.6,
-            scale: 1.1,
-            duration: 60, // Long pulse
-            ease: "none"
+        // Common: Glow Ring Pulse
+        tl.to(".glow-ring", {
+            opacity: 0.5,
+            scale: 1.08,
+            duration: 4,
+            repeat: 15,
+            yoyo: true,
+            ease: "sine.inOut"
         }, 0);
 
-        // --- STYLE SWITCHER ---
+        // --- JAPANESE ANIMATION STYLE SWITCHER ---
         switch (animStyle) {
-            case 'cine':
-                tl.fromTo("#text-container", { opacity: 0 }, { opacity: 1, duration: 1.5, ease: "power2.inOut" }, 0);
-                tl.fromTo(".word", { opacity: 0, filter: "blur(10px)", scale: 1.1 }, { opacity: 1, filter: "blur(0px)", scale: 1, duration: 1.2, stagger: 0.1, ease: "power2.out" }, 0.2);
+            case 'sakura':  // Cherry blossom - gentle falling reveal
+                tl.fromTo("#text-container", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1, ease: "power2.out" }, 0);
+                tl.fromTo(".word", { 
+                    opacity: 0, y: -35, rotation: -15 
+                }, { 
+                    opacity: 1, y: 0, rotation: 0, 
+                    duration: 0.7, stagger: 0.1, ease: "power2.out" 
+                }, 0.3);
                 break;
-            case 'type':
-                tl.fromTo("#text-container", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0);
-                tl.fromTo(".word", { opacity: 0 }, { opacity: 1, duration: 0.05, stagger: 0.15, ease: "none" }, 0.2);
+                
+            case 'ink':  // 書道 (Shodo) - Brush ink spreading
+                tl.fromTo("#text-container", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 0);
+                tl.fromTo(".word", { 
+                    opacity: 0, scale: 0.4, filter: "blur(12px)" 
+                }, { 
+                    opacity: 1, scale: 1, filter: "blur(0px)", 
+                    duration: 0.85, stagger: 0.09, ease: "expo.out" 
+                }, 0.2);
                 break;
-            case 'pop':
-                tl.fromTo("#text-container", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.8, ease: "back.out(1.2)" }, 0);
-                tl.fromTo(".word", { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: 0.5, stagger: 0.08, ease: "elastic.out(1, 0.75)" }, 0.3);
+                
+            case 'zen':  // 禅 - Minimal, meditative fade
+                tl.fromTo("#text-container", { opacity: 0 }, { opacity: 1, duration: 1.5, ease: "sine.inOut" }, 0);
+                tl.fromTo(".word", { 
+                    opacity: 0 
+                }, { 
+                    opacity: 1, 
+                    duration: 1.5, stagger: 0.15, ease: "sine.inOut" 
+                }, 0.5);
                 break;
-            case 'slide':
-                tl.fromTo("#text-container", { opacity: 0 }, { opacity: 1, duration: 1 }, 0);
-                tl.fromTo(".word", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.8, stagger: 0.08, ease: "power3.out" }, 0.3);
+                
+            case 'wave':  // 波 - Flowing wave motion
+                tl.fromTo("#text-container", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, 0);
+                tl.fromTo(".word", { 
+                    opacity: 0, y: 30, x: -15 
+                }, { 
+                    opacity: 1, y: 0, x: 0, 
+                    duration: 0.55, stagger: { each: 0.08, from: "start" }, ease: "sine.out" 
+                }, 0.3);
                 break;
-            case 'premium':
-            default:
-                tl.fromTo("#text-container", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, 0);
-                tl.fromTo(".word", { opacity: 0, y: 30, rotationX: 45, transformOrigin: "50% 50% -50px" }, { opacity: 1, y: 0, rotationX: 0, duration: 0.8, stagger: 0.05, ease: "back.out(1.2)" }, 0.3);
+                
+            default:  // Fallback to sakura
+                tl.fromTo("#text-container", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1, ease: "power2.out" }, 0);
+                tl.fromTo(".word", { 
+                    opacity: 0, y: -30 
+                }, { 
+                    opacity: 1, y: 0, 
+                    duration: 0.6, stagger: 0.08, ease: "power2.out" 
+                }, 0.3);
                 break;
         }
 
-        // --- CONTROL INTERFACE ---
-        // MOVED TO BOTTOM TO ENSURE vars ARE DEFINED
+        // --- CONTROL INTERFACE FOR PLAYWRIGHT ---
         window.setWordActive = (index) => {
             wordEls.forEach((el, i) => {
                 if (i === index) el.classList.add('active');

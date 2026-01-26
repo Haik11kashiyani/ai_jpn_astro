@@ -12,36 +12,29 @@ try:
 except ImportError:
     GOOGLE_AI_AVAILABLE = False
 
-# Load environment variables
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class DirectorAgent:
     """
-    The Director Agent converts a script into a Visual Screenplay.
-    It decides the 'Mood' and selects specific, cinematic keywords for stock footage.
-    Auto-discovers the best free model on OpenRouter.
-    Supports multiple API keys with automatic failover on rate limits.
-    Falls back to Google AI Studio when OpenRouter is exhausted.
+    The Director Agent converts a Japanese fortune script into a Visual Screenplay.
+    Focuses on authentic Japanese aesthetics: cherry blossoms, temples, zen gardens.
     """
     
     def __init__(self, api_key: str = None, backup_key: str = None):
-        """Initialize with OpenRouter API Keys (primary + backup) + Google AI fallback."""
+        """Initialize with OpenRouter API Keys + Google AI fallback."""
         self.api_keys = []
         
-        # Primary key
         primary = api_key or os.getenv("OPENROUTER_API_KEY")
         if primary:
             self.api_keys.append(primary)
         
-        # Backup key
         backup = backup_key or os.getenv("OPENROUTER_API_KEY_BACKUP")
         if backup:
             self.api_keys.append(backup)
         
-        # Google AI key (fallback)
-        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY") or "AIzaSyDw8nEeFSWIajWJIL43u8Dt7UT5jJS_FuA"
+        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
             genai.configure(api_key=self.google_ai_key)
             self.google_model = genai.GenerativeModel('gemini-2.0-flash-exp')
@@ -76,11 +69,11 @@ class DirectorAgent:
         return False
 
     def _generate_with_google_ai(self, system_prompt: str, user_prompt: str, sections: list) -> dict:
-        """Fallback to Google AI Studio (Gemini) when OpenRouter fails."""
+        """Fallback to Google AI Studio."""
         if not self.google_model:
             return None
             
-        logging.info("🌟 Director: Trying Google AI Studio (Gemini) as fallback...")
+        logging.info("🌟 Director: Trying Google AI Studio fallback...")
         try:
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             response = self.google_model.generate_content(full_prompt)
@@ -97,7 +90,11 @@ class DirectorAgent:
             
         except Exception as e:
             logging.error(f"❌ Director: Google AI Studio failed: {e}")
-            return {"mood": "Peaceful", "scenes": {k: "Abstract golden particles slow motion" for k in sections}}
+            # Return Japanese-themed fallback
+            return {
+                "mood": "zen",
+                "scenes": {k: "Cherry blossoms floating softly zen garden peaceful" for k in sections}
+            }
 
     def _get_best_free_models(self) -> list:
         """Discovers best free models on OpenRouter."""
@@ -115,7 +112,6 @@ class DirectorAgent:
                 if pricing.get("prompt") == "0" and pricing.get("completion") == "0":
                     free_models.append(m["id"])
             
-            # Score and rank
             scored = []
             for mid in free_models:
                 score = 0
@@ -137,56 +133,59 @@ class DirectorAgent:
 
     def create_screenplay(self, script_data) -> dict:
         """
-        Analyzes the horoscope script and generates a shot list.
-        Handles both dict and list script formats.
+        Analyzes the fortune script and generates Japanese-themed visual keywords.
         """
-        logging.info("🎬 Director: visualizing the script...")
+        logging.info("🎬 Director: Creating Japanese visual screenplay...")
         
-        sections = ["intro", "love", "career", "money", "health", "remedy"]
+        sections = ["hook", "love", "career", "money", "health", "lucky_item"]
         
-        # Handle different input types
         if isinstance(script_data, dict):
-            full_script_text = " ".join([str(script_data.get(k, "")) for k in sections])
+            full_script_text = " ".join([str(script_data.get(k, "")) for k in sections if k in script_data])
         elif isinstance(script_data, list):
             full_script_text = " ".join([str(item) for item in script_data if item])
         else:
             full_script_text = str(script_data)
         
         system_prompt = """
-        You are a Christopher Nolan-esque Film Director.
-        You transform simple text into CINEMATIC VISUALS.
-        
-        Your Goal: Select STOCK FOOTAGE keywords that match the emotion but are NOT cheesy.
-        
-        Rules for Keywords:
-        1. Always English.
-        2. Visual, Atmospheric, High Quality.
-        3. NO text on screen descriptions.
-        4. Examples:
-           - Bad: "Sad man" -> Good: "Silhouette in rain window reflection dark, moody"
-           - Bad: "Money" -> Good: "Golden coins falling slow motion cinematic lighting"
-           - Bad: "Love" -> Good: "Couple holding hands sunset silhouette beach"
-        """
+You are a Japanese Visual Director specializing in 占い (fortune-telling) video aesthetics.
+You transform fortune scripts into CINEMATIC JAPANESE VISUALS.
+
+Your visual vocabulary includes:
+- 桜 (Sakura): Cherry blossoms, petals floating, spring atmosphere
+- 神社 (Jinja): Shinto shrines, torii gates, sacred spaces
+- 禅 (Zen): Zen gardens, rock gardens, meditation spaces
+- 月 (Tsuki): Moon, moonlight, nighttime mysticism  
+- 富士山: Mount Fuji, majestic landscapes
+- 温泉: Onsen steam, relaxation imagery
+- 提灯: Japanese lanterns, festival warmth
+- 招き猫: Maneki-neko fortune cats
+
+Rules for Keywords:
+1. Use English but evoke JAPANESE aesthetics
+2. Cinematic, atmospheric, high quality
+3. NO text descriptions, pure visual mood
+4. Match the emotion but stay authentically Japanese
+"""
         
         user_prompt = f"""
-        Analyze this Hindi Horoscope Script and generate a JSON Screenplay.
-        
-        Script Context: {full_script_text}
-        
-        Return ONLY a JSON object with this structure:
-        {{
-            "mood": "Mysterious" | "Energetic" | "Peaceful" | "Dark",
-            "music_style": "Ambient Drone" | "Upbeat classical" | "Deep meditation",
-            "scenes": {{
-                "intro": "cinematic keyword 1",
-                "love": "cinematic keyword 2",
-                "career": "cinematic keyword 3",
-                "money": "cinematic keyword 4",
-                "health": "cinematic keyword 5",
-                "remedy": "cinematic keyword 6"
-            }}
-        }}
-        """
+Analyze this Japanese Fortune Script and generate visual keywords.
+
+Script Context: {full_script_text[:500]}
+
+Return ONLY JSON:
+{{
+    "mood": "zen" | "sakura" | "mystical" | "energetic" | "serene",
+    "music_style": "Koto ambient" | "Shamisen upbeat" | "Zen meditation" | "Taiko drums",
+    "scenes": {{
+        "hook": "Japanese cinematic keyword for opening",
+        "love": "Japanese romantic visual keyword",
+        "career": "Japanese success/ambition visual keyword",
+        "money": "Japanese prosperity visual keyword (maneki-neko, coins)",
+        "health": "Japanese wellness visual keyword (onsen, zen)",
+        "lucky_item": "Japanese fortune item visual"
+    }}
+}}
+"""
 
         tried_backup = False
         
@@ -209,26 +208,31 @@ class DirectorAgent:
                     error_str = str(e)
                     logging.warning(f"⚠️ Director model {model} failed: {e}")
                     
-                    # Check if it's a rate limit error (429)
                     if "429" in error_str or "rate limit" in error_str.lower():
                         if not tried_backup and self._switch_to_backup_key():
                             logging.info("🔄 Rate limit hit! Retrying with backup key...")
                             tried_backup = True
-                            break  # Restart model loop with new key
+                            break
                     continue
             else:
-                # All models exhausted
                 break
         
-        # FINAL FALLBACK: Try Google AI Studio
-        logging.warning("⚠️ Director: All OpenRouter models/keys exhausted. Trying Google AI...")
+        # FINAL FALLBACK: Google AI
+        logging.warning("⚠️ Director: All OpenRouter failed. Trying Google AI...")
         google_result = self._generate_with_google_ai(system_prompt, user_prompt, sections)
         if google_result:
             return google_result
         
-        # Ultimate fallback visuals
-        logging.error("❌ All Director models/keys/fallbacks failed. Using hardcoded visuals.")
+        # Ultimate fallback - Japanese themed
+        logging.error("❌ All Director models failed. Using Japanese fallback visuals.")
         return {
-            "mood": "Peaceful",
-            "scenes": {k: "Abstract golden particles slow motion" for k in sections}
+            "mood": "zen",
+            "scenes": {
+                "hook": "Mystical torii gate sunrise fog ethereal",
+                "love": "Couple cherry blossoms sunset romantic temple",
+                "career": "Tokyo skyline success confidence morning",
+                "money": "Golden maneki-neko coins prosperity traditional",
+                "health": "Zen garden meditation peaceful bamboo",
+                "lucky_item": "Omamori charm shrine spiritual protection"
+            }
         }

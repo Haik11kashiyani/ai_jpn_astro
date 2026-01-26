@@ -1,9 +1,9 @@
-name: Daily Rashifal - Batch 4 (Makar, Kumbh, Meen)
+name: Daily Eto Fortune - Batch 4 (Tori, Inu, I)
 on:
   workflow_dispatch:
   schedule:
-    # 2:57 AM IST = 21:27 UTC - 27 min after batch1
-    - cron: "27 21 * * *"
+    # 7:00 AM JST = 22:00 UTC (previous day)
+    - cron: "0 22 * * *"
 
 jobs:
   produce-video:
@@ -12,7 +12,7 @@ jobs:
       max-parallel: 1
       fail-fast: true
       matrix:
-        rashi: ["Makar (Capricorn)", "Kumbh (Aquarius)", "Meen (Pisces)"]
+        eto: ["Tori (Rooster/酉)", "Inu (Dog/戌)", "I (Boar/亥)"]
 
     steps:
       - name: Checkout Code
@@ -47,12 +47,12 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
-          python main.py --rashi "${{ matrix.rashi }}" --type shorts --upload
+          python main.py --eto "${{ matrix.eto }}" --type shorts --upload
 
       - name: Upload Artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: batch4-${{ matrix.rashi }}
+          name: batch4-${{ matrix.eto }}
           path: outputs/*.mp4
           retention-days: 7

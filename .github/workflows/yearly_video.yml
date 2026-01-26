@@ -1,15 +1,14 @@
-name: Yearly Rashifal Production
+name: Yearly Eto Fortune (年間運勢)
 on:
   workflow_dispatch:
     inputs:
-      video_type:
-        description: "Video Type"
-        required: false
-        default: "yearly"
+      eto:
+        description: "Target Eto (e.g., Ne (Rat/子))"
+        required: true
+        default: "Ne (Rat/子)"
   schedule:
-    # RUN ON DECEMBER 28th at 4:00 AM IST (22:30 UTC Dec 27)
-    # This generates the "Year 2027" videos in advance
-    - cron: "30 22 27 12 *"
+    # Run on January 1st at 0:00 AM JST (15:00 UTC Dec 31)
+    - cron: "0 15 31 12 *"
 
 jobs:
   produce-video:
@@ -18,21 +17,19 @@ jobs:
       max-parallel: 1
       fail-fast: true
       matrix:
-        rashi:
-          [
-            "Mesh (Aries)",
-            "Vrushabh (Taurus)",
-            "Mithun (Gemini)",
-            "Kark (Cancer)",
-            "Singh (Leo)",
-            "Kanya (Virgo)",
-            "Tula (Libra)",
-            "Vrushchik (Scorpio)",
-            "Dhanu (Sagittarius)",
-            "Makar (Capricorn)",
-            "Kumbh (Aquarius)",
-            "Meen (Pisces)",
-          ]
+        eto:
+          - "Ne (Rat/子)"
+          - "Ushi (Ox/丑)"
+          - "Tora (Tiger/寅)"
+          - "U (Rabbit/卯)"
+          - "Tatsu (Dragon/辰)"
+          - "Mi (Snake/巳)"
+          - "Uma (Horse/午)"
+          - "Hitsuji (Sheep/未)"
+          - "Saru (Monkey/申)"
+          - "Tori (Rooster/酉)"
+          - "Inu (Dog/戌)"
+          - "I (Boar/亥)"
 
     steps:
       - name: Checkout Code
@@ -51,27 +48,28 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps chromium
 
-      - name: Rate Limit Cooldown (Wait 3 Mins)
+      - name: Rate Limit Cooldown (5 Mins)
         run: |
-          echo "⏳ Waiting 180 seconds before starting..."
-          sleep 180
+          echo "⏳ Waiting 5 minutes for rate limits..."
+          sleep 300
 
-      - name: Run Production Studio (Yearly)
+      - name: Run Yearly Production
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
+          OPENROUTER_API_KEY_BACKUP_2: ${{ secrets.OPENROUTER_API_KEY_BACKUP_2 }}
           GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
-          python main.py --rashi "${{ matrix.rashi }}" --type yearly --upload
+          python main.py --eto "${{ matrix.eto }}" --type detailed --upload
 
       - name: Upload Artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: yearly-rashifal-${{ matrix.rashi }}
+          name: yearly-${{ matrix.eto }}
           path: outputs/*.mp4
           retention-days: 90

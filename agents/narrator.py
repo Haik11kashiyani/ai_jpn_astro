@@ -8,31 +8,33 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class NarratorAgent:
     """
-    The Narrator Agent uses Edge-TTS (Neural) to generate human-like Hindi voiceovers.
+    The Narrator Agent uses Edge-TTS (Neural) to generate human-like Japanese voiceovers.
+    Uses ja-JP-NanamiNeural for natural, warm female Japanese voice.
     """
     
     def __init__(self):
-        # Neural Voices: hi-IN-SwaraNeural (Female) or hi-IN-MadhurNeural (Male)
-        self.voice = "hi-IN-SwaraNeural"
-        self.rate = "+0%"  # Reset to default for better emotion
+        # Japanese Neural Voices:
+        # ja-JP-NanamiNeural (Female) - Most natural, warm tone
+        # ja-JP-KeitaNeural (Male) - Professional male voice
+        self.voice = "ja-JP-NanamiNeural"
+        self.rate = "-5%"   # Slightly slower for mystical feel
         self.pitch = "+0Hz"
 
     async def generate_audio(self, text: str, output_path: str):
         """
         Generates MP3 audio and saves word-level subtitles to a JSON file.
         """
-        # Clean text: Remove brackets and their content (e.g. "(Hook)")
+        # Clean text: Remove brackets and their content
         import re
         clean_text = re.sub(r'\s*\(.*?\)\s*', ' ', text).strip()
         if not clean_text: return False
         
-        logging.info(f"🎙️ Narrator: Speaking {len(clean_text)} chars...")
+        logging.info(f"🎙️ Narrator: Speaking {len(clean_text)} Japanese chars...")
         subtitle_path = output_path.replace(".mp3", ".json")
         
         # Retry logic for EdgeTTS
         for attempt in range(3):
             try:
-                # Use default rate/pitch to minimize errors
                 communicate = edge_tts.Communicate(clean_text, self.voice, rate=self.rate, pitch=self.pitch)
                 subtitles = []
                 
@@ -49,19 +51,17 @@ class NarratorAgent:
                 
                 # Check file integrity
                 if os.path.exists(output_path) and os.path.getsize(output_path) > 100:
-                    # Save subtitles
                     if subtitles:
                         with open(subtitle_path, "w", encoding="utf-8") as f:
                             json.dump(subtitles, f, ensure_ascii=False, indent=2)
-                    logging.info(f"   ✅ EdgeTTS Audio saved: {output_path}")
+                    logging.info(f"   ✅ Japanese Audio saved: {output_path}")
                     return True
                 
             except Exception as e:
                 logging.warning(f"⚠️ EdgeTTS Attempt {attempt+1} Failed: {e}")
-                await asyncio.sleep(2) # Wait before retry
+                await asyncio.sleep(2)
 
         logging.warning("⚠️ All EdgeTTS attempts failed. Switching to Fallback (gTTS)...")
-        # Cleanup broken file if any
         if os.path.exists(output_path): os.remove(output_path)
             
         return self._fallback_gtts(clean_text, output_path, subtitle_path)
@@ -72,15 +72,26 @@ class NarratorAgent:
             from gtts import gTTS
             from mutagen.mp3 import MP3
             
-            tts = gTTS(text=text, lang='hi', slow=False)
+            # Use Japanese language
+            tts = gTTS(text=text, lang='ja', slow=False)
             tts.save(output_path)
             
             if os.path.exists(output_path):
-                # Generate Pseudo-Subtitles for highlighting
                 try:
                     audio = MP3(output_path)
                     duration = audio.info.length
-                    words = text.split()
+                    
+                    # For Japanese, split by common particles and spaces
+                    # Japanese doesn't have spaces, so we'll split by characters for pseudo-subtitles
+                    # This is less accurate but works as fallback
+                    import re
+                    # Split by Japanese punctuation marks
+                    words = re.split(r'([。、！？\s]+)', text)
+                    words = [w for w in words if w.strip()]
+                    
+                    if not words:
+                        words = list(text)  # Fallback to character-by-character
+                    
                     word_duration = duration / max(len(words), 1)
                     
                     subtitles = []
