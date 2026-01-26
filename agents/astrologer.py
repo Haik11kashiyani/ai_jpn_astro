@@ -146,16 +146,15 @@ class AstrologerAgent:
             return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
 
     def _generate_script(self, eto: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
-        """Helper to try models in rotation with key failover on rate limits."""
+        """Helper to try models in rotation with smart backoff on rate limits."""
+        import time
         errors = []
-        tried_backup = False
         
-        while True:
+        # Max retries per model type
+        max_loop_retries = 3 
+        
+        for attempt in range(max_loop_retries):
             for model in self.models:
-                import time
-                logging.info(f"⏳ Rate Limit Guard: Waiting 2 minutes before API call...")
-                time.sleep(120)
-                
                 logging.info(f"🤖 Generating {period_type} fortune using: {model}")
                 try:
                     try:
@@ -174,7 +173,7 @@ class AstrologerAgent:
                             response = self.client.chat.completions.create(
                                 model=model,
                                 messages=[
-                                    {"role": "system", "content": system_prompt + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown."},
+                                    {"role": "system", "content": system_prompt + "\\n\\nIMPORTANT: Return ONLY valid JSON. No markdown."},
                                     {"role": "user", "content": user_prompt}
                                 ]
                             )
@@ -190,15 +189,23 @@ class AstrologerAgent:
                     logging.warning(f"⚠️ Model {model} failed: {e}")
                     errors.append(f"{model}: {error_str}")
                     
+                    # Smart Backoff for Rate Limits
                     if "429" in error_str or "rate limit" in error_str.lower():
-                        if not tried_backup and self._switch_to_backup_key():
-                            logging.info("🔄 Rate limit hit! Retrying with backup key...")
-                            tried_backup = True
-                            errors = []
-                            break
-                    continue
-            else:
-                break
+                        if "free" in model:
+                            wait_time = 180 # 3 mins for free models
+                        else:
+                            wait_time = 60  # 1 min for others
+                            
+                        logging.info(f"⏳ Rate Limit (429) hit. Sleeping {wait_time}s before next retry...")
+                        time.sleep(wait_time)
+                    else:
+                        # Non-rate limit error (e.g. 500, overload)
+                        time.sleep(5)
+                    
+                    continue # Try next model
+            
+            logging.info(f"🔄 Loop {attempt+1}/{max_loop_retries} finished. Waiting 30s before restarting model loop...")
+            time.sleep(30)
         
         logging.warning("⚠️ All OpenRouter models/keys exhausted. Trying Google AI fallback...")
         google_result = self._generate_with_google_ai(system_prompt, user_prompt)
