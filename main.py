@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import argparse
 import json
 import logging
@@ -105,6 +106,8 @@ def produce_video_from_script(agents, eto, title_suffix, script, date_str, theme
             script = {"content": " ".join(str(s) for s in script)}
     
     # Use Director to analyze script and get mood for music
+    print(f"   ⏳ Cooling down (Safety Pause)...")
+    time.sleep(5)
     print(f"   🎬 Director analyzing content mood...")
     screenplay = director.create_screenplay(script)
     content_mood = screenplay.get("mood", "zen") if isinstance(screenplay, dict) else "zen"
@@ -325,6 +328,10 @@ def main():
     print(f"   Type: {args.type.upper()}")
     print("="*60 + "\n")
     
+    # Initialize counters early to prevent UnboundLocalError
+    upload_success_count = 0
+    upload_failure_count = 0
+    
     generated_content = []
     
     # ==========================
@@ -340,6 +347,9 @@ def main():
                 season, 
                 eto_info
             )
+            
+            print("   ⏳ Script generated. Cooling down 5s...")
+            time.sleep(5)
             
             # EXTRACT LUCKY COLOR FOR THEME
             theme_color = None
@@ -411,6 +421,9 @@ def main():
                 })
                 detailed_produced = True
                 
+                print("   ⏳ Yearly done. Cooling down 20s...")
+                time.sleep(20)
+                
             except Exception as e:
                 print(f"❌ Yearly Video Failed: {e}")
 
@@ -435,6 +448,9 @@ def main():
                     "script": monthly_script
                 })
                 detailed_produced = True
+                
+                print("   ⏳ Monthly done. Cooling down 20s...")
+                time.sleep(20)
                 
             except Exception as e:
                 print(f"❌ Monthly Video Failed: {e}")
@@ -490,8 +506,9 @@ def main():
                 target_utc = target_time.astimezone(pytz.utc)
                 utc_publish_at = target_utc.replace(tzinfo=None)
 
-            upload_success_count = 0
-            upload_failure_count = 0
+            if target_time:
+                target_utc = target_time.astimezone(pytz.utc)
+                utc_publish_at = target_utc.replace(tzinfo=None)
             
             for item in generated_content:
                 path = item["path"]

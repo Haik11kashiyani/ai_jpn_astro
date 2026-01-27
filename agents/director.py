@@ -187,6 +187,18 @@ Return ONLY JSON:
 }}
 """
 
+        # --- PRIORITY 1: GOOGLE AI (Unlimited/Free Tier) ---
+        import time 
+        if self.google_model:
+            logging.info("✨ Director: Using Google AI (Primary)...")
+            google_result = self._generate_with_google_ai(system_prompt, user_prompt, sections)
+            if google_result:
+                logging.info("✅ Director: Google AI Generation Successful! Sleeping 3s...")
+                time.sleep(3)
+                return google_result
+            else:
+                logging.warning("⚠️ Director: Google AI Primary failed. Falling back to OpenRouter...")
+
         tried_backup = False
         
         while True:
@@ -202,6 +214,7 @@ Return ONLY JSON:
                         response_format={"type": "json_object"}
                     )
                     
+                    time.sleep(2) # Small break
                     return json.loads(response.choices[0].message.content)
                     
                 except Exception as e:
@@ -213,15 +226,12 @@ Return ONLY JSON:
                             logging.info("🔄 Rate limit hit! Retrying with backup key...")
                             tried_backup = True
                             break
+                        else:
+                             logging.info("⏳ Director sleeping 60s for rate limit...")
+                             time.sleep(60)
                     continue
             else:
                 break
-        
-        # FINAL FALLBACK: Google AI
-        logging.warning("⚠️ Director: All OpenRouter failed. Trying Google AI...")
-        google_result = self._generate_with_google_ai(system_prompt, user_prompt, sections)
-        if google_result:
-            return google_result
         
         # Ultimate fallback - Japanese themed
         logging.error("❌ All Director models failed. Using Japanese fallback visuals.")

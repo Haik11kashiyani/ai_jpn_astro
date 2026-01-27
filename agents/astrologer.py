@@ -148,6 +148,18 @@ class AstrologerAgent:
     def _generate_script(self, eto: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
         """Helper to try models in rotation with smart backoff on rate limits."""
         import time
+        
+        # --- PRIORITY 1: GOOGLE AI (Unlimited/Free Tier) ---
+        if self.google_model:
+            logging.info(f"✨ Using Google AI (Primary) for {period_type}...")
+            google_result = self._generate_with_google_ai(system_prompt, user_prompt)
+            if google_result:
+                logging.info("✅ Google AI Generation Successful! Sleeping 5s to respect rate limits...")
+                time.sleep(5) # Rate limit protection
+                return google_result
+            else:
+                logging.warning("⚠️ Google AI Primary failed. Falling back to OpenRouter...")
+
         errors = []
         
         # Max retries per model type
@@ -182,6 +194,9 @@ class AstrologerAgent:
                             raise e
 
                     clean_json = raw_content.replace('```json', '').replace('```', '').strip()
+                    
+                    logging.info("✅ OpenRouter Generation Successful!")
+                    time.sleep(2) # Small break for OpenRouter
                     return json.loads(clean_json)
                     
                 except Exception as e:
@@ -206,11 +221,6 @@ class AstrologerAgent:
             
             logging.info(f"🔄 Loop {attempt+1}/{max_loop_retries} finished. Waiting 30s before restarting model loop...")
             time.sleep(30)
-        
-        logging.warning("⚠️ All OpenRouter models/keys exhausted. Trying Google AI fallback...")
-        google_result = self._generate_with_google_ai(system_prompt, user_prompt)
-        if google_result:
-            return google_result
         
         raise Exception(f"❌ API Quota Exceeded. Cannot generate content for {eto}.")
 
