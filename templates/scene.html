@@ -232,7 +232,8 @@
             /* Moved down slightly */
             left: 50%;
             transform: translateX(-50%);
-            width: 900px;
+            width: 840px;
+            /* Reduced from 900px to prevent border touching */
             min-height: 400px;
             max-height: 1000px;
             /* Prevent running off screen */
@@ -260,12 +261,12 @@
 
             /* Japanese typography */
             font-size: 36px;
-            /* Reduced from 48px to fit more text */
             font-weight: 700;
             line-height: 2.2;
             letter-spacing: 0.05em;
 
-            padding: 50px 40px;
+            padding: 60px 50px;
+            /* Increased padding */
 
             display: flex;
             flex-wrap: wrap;
@@ -283,15 +284,17 @@
             opacity: 0.35;
             margin: 10px 12px;
             transform-origin: center center;
-            transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            will-change: transform, opacity;
         }
 
         .word.active {
             opacity: 1 !important;
-            transform: scale(1.35) !important;
+            transform: scale(1.2) !important;
+            /* Reduced from 1.35 */
             color: var(--glow, #ffd700) !important;
-            text-shadow: 0 0 40px var(--glow, #ffd700), 0 0 80px var(--glow, #ffd700) !important;
-            filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.8));
+            text-shadow: 0 0 30px var(--glow, #ffd700), 0 0 60px var(--glow, #ffd700) !important;
+            filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.8));
         }
     </style>
 </head>

@@ -177,18 +177,25 @@ class EditorEngine:
         eto_img = self.get_eto_image_path(eto_name, period_type) or ""
         eto_key = self._get_eto_key(eto_name)
         
-        # Get style: COLOR_THEME > ETO_STYLES > Fallback
+        # Get style: COLOR_THEME > RANDOM > ETO_STYLES > Fallback
+        import random
+        
         style = None
         if theme_override:
             theme_lower = theme_override.lower()
             style = COLOR_STYLES.get(theme_lower)
-        
+            
         if not style:
-            style = ETO_STYLES.get(eto_key)
+            # DYNAMIC BACKGROUNDS: Randomize style for variety if no specific theme requested
+            # This ensures the video doesn't look the same every time for the same animal
+            style = random.choice(list(COLOR_STYLES.values()))
              
         if not style:
+            style = ETO_STYLES.get(eto_key)
+            
+        if not style:
             # Japanese neutral fallback (deep indigo)
-            style = {"grad": ("#0a0a1a", "#1a1a3a", "#3a3a6a"), "glow": "#8080ff", "element": "water"}
+            style = {"grad": ("#0a1628", "#1e4066", "#5c9dc9"), "glow": "#4fb3d9", "element": "water"}
         
         grad = style["grad"]
         glow = style["glow"]
@@ -199,6 +206,13 @@ class EditorEngine:
             eto_img_url = f"file:///{eto_img.replace(os.sep, '/')}"
         else:
             eto_img_url = ""
+
+        # --- SYNC FIX: Force HTML text to match Subtitle tokens exactly ---
+        # This prevents mismatches where HTML splits by space but TTS splits differently
+        if subtitle_data:
+            # Construct text from subtitle tokens to guarantee 1:1 mapping
+            text = " ".join([s['text'] for s in subtitle_data])
+            logging.info(f"   🔄 Sync: Reconstructed text from {len(subtitle_data)} subtitle tokens.")
             
         # Construct URL with params
         import urllib.parse
