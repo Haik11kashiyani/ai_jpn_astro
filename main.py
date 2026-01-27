@@ -547,5 +547,19 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(f"❌ Fatal Error: {e}")
-        # sys.exit(1) # Don't fail the build if video exists
-        sys.exit(0) # Success so we get artifacts
+        import traceback
+        traceback.print_exc()
+        
+        # DEBUG: Print file system state
+        print("\n🔍 DEBUG: File System Check")
+        print(f"   📂 CWD: {os.getcwd()}")
+        
+        if os.path.exists("outputs"):
+            print(f"   📂 outputs/: {os.listdir('outputs')}")
+        else:
+            print(f"   ⚠️ outputs/ directory does not exist")
+            
+        if os.path.exists("assets/temp"):
+            print(f"   📂 assets/temp/: {os.listdir('assets/temp')}")
+            
+        sys.exit(1) # Fail the build so we see the error in GitHub Actions
