@@ -325,12 +325,12 @@ CRITICAL RULES:
 - NO typos or grammatical errors in Japanese
 - **AVOID TOXIC POSITIVITY**: Life has ups and downs. Be honest. If the day implies caution, say it clearly.
 - **TRUTHFUL & ACCURATE**: Base every prediction strictly on the Element relationships and Deep Astrology data provided.
-- **DYNAMIC & RELATABLE**: The "Hook" must sound like a real friend warning or encouraging you. Connect to daily life.
-- **SPECIFIC REMEDIES**: For every negative aspect, provide a CONCRETE, DOABLE remedy.
+- **DYNAMIC & RELATABLE**: The "Hook" must sound like a real friend warning or encouraging you. Connect to daily life (work stress, relationship doubts, small joys).
+- **SPECIFIC REMEDIES**: For every negative aspect, provide a CONCRETE, DOABLE remedy (action, item, or mindset).
 - Use authentic fortune-telling terminology: 吉、凶、大吉、運気、開運、相性
 - Lucky items must be SPECIFIC and related to the {eto_info['element']} element.
 
-Tone: Mystical but grounded, honest, empathetic, and 100% authentic.
+Tone: **THE VOICE OF A MASTER**. Like a wise, empathetic grandfather/grandmother speaking 1-on-1. Warm, authoritative, yet deeply personal. **ABSOLUTELY NO ROBOTIC OR GENERIC PHRASING**.
 """
         
         user_prompt = f"""
