@@ -188,16 +188,36 @@ def produce_video_from_script(agents, eto, title_suffix, script, date_str, theme
 
     print(f"   ⏱️  Total Pre-Render Duration: {total_duration:.2f}s")
 
-    # --- PHASE 2: SMART TRIMMING ---
+    # --- PHASE 2: SMART TRIMMING & COMPRESSION ---
     if period_type == "Daily":
-        TARGET_DURATION = 58.0
+        TARGET_DURATION = 59.5 # Maximize use of Shorts 60s limit
     else:
         TARGET_DURATION = 600.0
 
+    # STRATEGY 1: COMPRESSION (Reduce Padding)
+    if total_duration > TARGET_DURATION:
+        print(f"   ⚠️ Duration {total_duration:.2f}s > {TARGET_DURATION}s. Activating COMPRESSION (Padding 0.3s -> 0.1s).")
+        total_duration = 0.0
+        # Recalculate with tighter padding
+        active_sections_copy = list(active_sections) # copy
+        for section in active_sections_copy:
+            if section in section_audios:
+                # Update duration in object
+                clip = section_audios[section]["audio_object"]
+                # We closed clip before, so we use the stored path to get approx raw duration
+                # Actually we can just subtract 0.2s from the previous 0.3s padded duration
+                raw_dur = section_audios[section]["duration"] - 0.3
+                new_dur = raw_dur + 0.1
+                section_audios[section]["duration"] = new_dur
+                total_duration += new_dur
+        print(f"   📉 Compressed Duration: {total_duration:.2f}s")
+
+    # STRATEGY 2: TRIMMING (Drop Sections)
     if total_duration > TARGET_DURATION:
         print(f"   ⚠️ Duration {total_duration:.2f}s > {TARGET_DURATION}s. Initiating SMART TRIMMING.")
         
-        drop_candidates = ["cosmic_context", "caution", "lucky_number", "lucky_direction", "omamori_advice"]
+        # Expanded drop list to ensure we obey the limit
+        drop_candidates = ["cosmic_context", "caution", "lucky_number", "lucky_direction", "omamori_advice", "lucky_item", "lucky_color"]
         
         for candidate in drop_candidates:
             if total_duration <= TARGET_DURATION:

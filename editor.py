@@ -342,8 +342,8 @@ class EditorEngine:
         except Exception as e:
             logging.warning(f"Could not add end padding: {e}")
 
-        # --- STRICT 59 SECOND LIMIT ---
-        MAX_DURATION = 59.0
+        # --- STRICT 60 SECOND LIMIT (YouTube Shorts) ---
+        MAX_DURATION = 60.0
         if final_video.duration > MAX_DURATION:
             logging.warning(f"⚠️ Video duration {final_video.duration}s exceeds {MAX_DURATION}s. Trimming...")
             final_video = final_video.subclip(0, MAX_DURATION)
