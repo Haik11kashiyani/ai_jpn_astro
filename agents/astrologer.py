@@ -253,16 +253,18 @@ You MUST use these REAL Japanese astrology systems in your predictions:
 
 4. **季節 (Season)**: {season}
 
+
 CRITICAL RULES:
 - Write ALL content in NATURAL JAPANESE using Kanji, Hiragana, and Katakana
 - NO typos or grammatical errors in Japanese
-- Be specific with predictions - avoid generic statements
+- **AVOID TOXIC POSITIVITY**: Life has ups and downs. Be honest. If the day implies caution, say it clearly.
+- **TRUTHFUL & ACCURATE**: Base every prediction strictly on the Element relationships (Wood/Fire/Earth/Metal/Water) and Rokuyo.
+- **DYNAMIC & RELATABLE**: The "Hook" must sound like a real friend warning or encouraging you. Connect to daily life (work stress, relationship doubts, small joys).
+- **SPECIFIC REMEDIES**: For every negative aspect, provide a CONCRETE, DOABLE remedy (action, item, or mindset).
 - Use authentic fortune-telling terminology: 吉、凶、大吉、運気、開運、相性
-- Lucky items should be traditional Japanese items
-- Lucky colors should be stated in Japanese (赤、青、緑、etc.)
-- Lucky directions should use Japanese compass terms (東、西、南、北)
+- Lucky items must be SPECIFIC and related to the {eto_info['element']} element.
 
-Tone: Warm, mystical, encouraging, grounded in tradition.
+Tone: Mystical but grounded, honest, empathetic, and 100% authentic.
 """
         
         user_prompt = f"""
@@ -272,18 +274,18 @@ The fortune should reflect today's {rokuyo['name']} energy and give specific, ac
 
 Return ONLY valid JSON with this structure:
 {{
-    "hook": "Attention-grabbing opening (Japanese, 1-2 sentences, emotionally engaging)",
-    "cosmic_context": "Today's {rokuyo['name']} influence + seasonal energy (Japanese)",
-    "love": "恋愛運 - Love fortune with specific advice (Japanese)",
-    "career": "仕事運 - Work/career fortune with specific advice (Japanese)",
-    "money": "金運 - Financial fortune with specific advice (Japanese)",
-    "health": "健康運 - Health fortune with seasonal awareness (Japanese)",
-    "lucky_item": "Traditional Japanese lucky item (e.g., 招き猫、鈴、赤い糸)",
+    "hook": "Attention-grabbing opening (Japanese, 1-2 sentences). MUST BE RELATABLE. Example: 'You might feel a sudden disconnect today...' or 'A surprise chance awaits...'",
+    "cosmic_context": "Today's {rokuyo['name']} influence + Element interaction (Japanese)",
+    "love": "恋愛運 - Love fortune. Be balanced. If bad, say why. (Japanese)",
+    "career": "仕事運 - Work/career fortune. Include potential pitfalls. (Japanese)",
+    "money": "金運 - Financial fortune. Specific advice, not just 'good luck'. (Japanese)",
+    "health": "健康運 - Health fortune. Seasonal + Element based. (Japanese)",
+    "remedy": "開運の鍵 (REMEDY) - Specific actionable remedy for today's challenges. NOT generic. (Japanese)",
+    "lucky_item": "Specific item related to today's element (Japanese)",
     "lucky_color": "Color in Japanese (e.g., 赤、青、金)",
     "lucky_direction": "Direction in Japanese (e.g., 東、南東)",
     "lucky_number": "Number with brief meaning",
-    "omamori_advice": "What type of protection/action brings luck today (Japanese)",
-    "caution": "What to be careful about today (Japanese)",
+    "caution": "What to be careful about today (Japanese). Be sharp and accurate.",
     "metadata": {{
         "title": "Viral YouTube Shorts title - MUST include what video is about + {eto_info['kanji']}年 + emoji + #shorts (max 80 chars)",
         "description": "Engaging description with 15-20 hashtags including #shorts #占い #今日の運勢 #干支占い",
@@ -307,6 +309,7 @@ For {eto_info['kanji']}年 ({eto_info['animal']}):
 
 CRITICAL: Write ALL content in NATURAL JAPANESE with NO typos.
 Use formal but warm Japanese suitable for fortune-telling.
+**DO NOT SUGARCOAT**. If the stars say struggle, predict struggle, but provide a **remedy**.
 """
         
         user_prompt = f"""
@@ -314,12 +317,13 @@ Generate a **Monthly Fortune (月間運勢)** for **{eto}** ({eto_info['kanji']}
 
 Return ONLY valid JSON:
 {{
-    "hook": "Compelling monthly theme hook (Japanese)",
-    "cosmic_context": "This month's energy overview (Japanese)",
-    "love": "恋愛運 - Monthly love forecast with key dates (Japanese)",
-    "career": "仕事運 - Monthly career forecast with opportunities (Japanese)",
-    "money": "金運 - Monthly financial forecast (Japanese)",
-    "health": "健康運 - Monthly health focus (Japanese)",
+    "hook": "Compelling monthly theme hook (Japanese). Honest and Real.",
+    "cosmic_context": "This month's energy overview (Japanese). Based on Kyusei Kigaku.",
+    "love": "恋愛運 - Monthly love forecast. Specific highs and lows. (Japanese)",
+    "career": "仕事運 - Monthly career forecast. Specific challenges and wins. (Japanese)",
+    "money": "金運 - Monthly financial forecast. Real advice. (Japanese)",
+    "health": "健康運 - Monthly health focus. (Japanese)",
+    "remedy": "今月の開運対策 (Monthly Remedy) - Actionable advice for the month's hardest challenge. (Japanese)",
     "lucky_dates": "Best dates this month (list in Japanese)",
     "caution_dates": "Challenging dates to be careful (Japanese)",
     "monthly_advice": "Overall advice for the month (Japanese)",
@@ -355,12 +359,13 @@ Generate a **Yearly Fortune (年間運勢)** for **{eto}** ({eto_info['kanji']}�
 
 Return ONLY valid JSON:
 {{
-    "hook": "Grand yearly theme revelation (Japanese, impactful)",
+    "hook": "Grand yearly theme revelation (Japanese, impactful). Honest and Powerful.",
     "cosmic_context": "{year}年's cosmic energy for {eto_info['kanji']}年 (Japanese)",
-    "love": "恋愛運 - Year's love destiny (Japanese)",
-    "career": "仕事運 - Year's career trajectory (Japanese)",
-    "money": "金運 - Year's wealth potential (Japanese)",
-    "health": "健康運 - Year's health focus (Japanese)",
+    "love": "恋愛運 - Year's love destiny. Real highs/lows. (Japanese)",
+    "career": "仕事運 - Year's career trajectory. Challenges & Success. (Japanese)",
+    "money": "金運 - Year's wealth potential. Realistic advice. (Japanese)",
+    "health": "健康運 - Year's health focus. (Japanese)",
+    "remedy": "年間開運の鍵 (Yearly Remedy) - The single most important action to survive/thrive this year. (Japanese)",
     "lucky_months": "Best months of the year (Japanese)",
     "challenge_months": "Months requiring caution (Japanese)",
     "yearly_theme": "The single most important theme for {year} (Japanese)",
