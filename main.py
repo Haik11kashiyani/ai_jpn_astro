@@ -340,12 +340,23 @@ def main():
     if args.type == "shorts":
         try:
             print("🔮 Generating DAILY Fortune (今日の運勢)...")
+            
+            # --- DEEP ASTROLOGY: Derive Parameters ---
+            print("   🌌 Consulting Deep Astrology Almanac (LLM)...")
+            deep_data = agents['astrologer'].derive_daily_parameters(date_str)
+            
+            if deep_data:
+                print("   ✅ Deep Data Retrieved: ", json.dumps(deep_data, ensure_ascii=False)[:100] + "...")
+            else:
+                print("   ⚠️ Deep Data unavailable. Using standard calculation.")
+            
             daily_script = agents['astrologer'].generate_daily_fortune(
                 args.eto, 
                 date_str, 
                 rokuyo, 
                 season, 
-                eto_info
+                eto_info,
+                deep_data=deep_data
             )
             
             print("   ⏳ Script generated. Cooling down 5s...")

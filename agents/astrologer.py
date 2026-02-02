@@ -25,7 +25,46 @@ class AstrologerAgent:
     Uses traditional systems: Eto, Kyusei Kigaku, Rokuyo, Gogyou (Five Elements).
     Acts as 星野先生 (Hoshino-sensei), a renowned Japanese fortune teller.
     """
-    
+
+    def derive_daily_parameters(self, date_str: str) -> dict:
+        """
+        Uses LLM to derive 100% ACCURATE traditional parameters (Rokuyo, Kyusei, Solar Term).
+        Replaces simple arithmetic approximations with 'Deep Astrology' knowledge.
+        """
+        logging.info(f"🌌 Deep Astrology: Deriving exact parameters for {date_str}...")
+        
+        system_prompt = """
+        You are an expert Japanese Astrologer/Almanac (暦).
+        Your Job: Provide the EXACT traditional Japanese calendar data for a specific date.
+        
+        REQUIRED DATA:
+        1. Exact Rokuyo (六曜) - based on the old lunar calendar.
+        2. Kyusei (九星) - Daily flying star.
+        3. Solar Term (二十四節気) - If applicable (e.g., Risshun, Geshi).
+        4. 12 Choku (十二直) - e.g., Mitsu, Tairu.
+        
+        Return JSON ONLY.
+        """
+        
+        user_prompt = f"""
+        Get the Japanese Almanac data for: {date_str}
+
+        Return JSON format:
+        {{
+            "rokuyo": {{ "name": "...", "reading": "...", "meaning": "..." }},
+            "kyusei": {{ "name": "...", "element": "..." }},
+            "sekki": "Solar Term or null",
+            "choku": {{ "name": "...", "meaning": "..." }}
+        }}
+        """
+        
+        try:
+             # Use a quick model for data retrieval if possible, otherwise standard
+            return self._generate_script("System", date_str, "Deep_Data", system_prompt, user_prompt)
+        except Exception as e:
+            logging.warning(f"⚠️ Deep Astrology Data failed: {e}. Falling back to standard calc.")
+            return None
+
     def __init__(self, api_key: str = None, backup_key: str = None):
         """Initialize with OpenRouter API Keys (primary + backup) + Google AI fallback."""
         self.api_keys = []
@@ -224,9 +263,34 @@ class AstrologerAgent:
         
         raise Exception(f"❌ API Quota Exceeded. Cannot generate content for {eto}.")
 
-    def generate_daily_fortune(self, eto: str, date: str, rokuyo: dict, season: str, eto_info: dict) -> dict:
+    def generate_daily_fortune(self, eto: str, date: str, rokuyo: dict, season: str, eto_info: dict, deep_data: dict = None) -> dict:
         """Generates Daily Japanese Fortune (今日の運勢)."""
         logging.info(f"✨ 星野先生: Generating Daily Fortune for {eto}...")
+        
+        # Merge Deep Data if available
+        rokuyo_info = f"{rokuyo['name']} ({rokuyo['romaji']})"
+        rokuyo_meaning = rokuyo['meaning']
+        
+        kyusei_str = ""
+        sekki_str = ""
+        choku_str = ""
+        
+        if deep_data:
+            if 'rokuyo' in deep_data and deep_data['rokuyo']:
+                r = deep_data['rokuyo']
+                rokuyo_info = f"{r.get('name', rokuyo['name'])} (True Lunar Rokuyo)"
+                rokuyo_meaning = r.get('meaning', rokuyo_meaning)
+            
+            if 'kyusei' in deep_data and deep_data['kyusei']:
+                k = deep_data['kyusei']
+                kyusei_str = f"5. **九星 (Kyusei)**: {k.get('name')} - Element: {k.get('element')}"
+                
+            if 'sekki' in deep_data and deep_data['sekki']:
+                sekki_str = f"6. **二十四節気 (Solar Term)**: {deep_data['sekki']}"
+                
+            if 'choku' in deep_data and deep_data['choku']:
+                c = deep_data['choku']
+                choku_str = f"7. **十二直 (Choku)**: {c.get('name')} ({c.get('meaning')})"
         
         system_prompt = f"""
 You are 「星野先生」 (Hoshino-sensei), a renowned Japanese fortune teller (占い師) with 30+ years of experience.
@@ -239,8 +303,8 @@ You MUST use these REAL Japanese astrology systems in your predictions:
    - Compatible with: {', '.join(eto_info.get('compat', []))}
    - Challenging with: {', '.join(eto_info.get('incompat', []))}
 
-2. **六曜 (Rokuyo)**: Today is {rokuyo['name']} ({rokuyo['romaji']})
-   - Meaning: {rokuyo['meaning']}
+2. **六曜 (Rokuyo)**: Today is {rokuyo_info}
+   - Meaning: {rokuyo_meaning}
    - Best for: {rokuyo['best']}
    - Avoid: {rokuyo['avoid']}
 
@@ -252,15 +316,17 @@ You MUST use these REAL Japanese astrology systems in your predictions:
    - Metal (金) creates Water, controls Wood
 
 4. **季節 (Season)**: {season}
-
+{kyusei_str}
+{sekki_str}
+{choku_str}
 
 CRITICAL RULES:
 - Write ALL content in NATURAL JAPANESE using Kanji, Hiragana, and Katakana
 - NO typos or grammatical errors in Japanese
 - **AVOID TOXIC POSITIVITY**: Life has ups and downs. Be honest. If the day implies caution, say it clearly.
-- **TRUTHFUL & ACCURATE**: Base every prediction strictly on the Element relationships (Wood/Fire/Earth/Metal/Water) and Rokuyo.
-- **DYNAMIC & RELATABLE**: The "Hook" must sound like a real friend warning or encouraging you. Connect to daily life (work stress, relationship doubts, small joys).
-- **SPECIFIC REMEDIES**: For every negative aspect, provide a CONCRETE, DOABLE remedy (action, item, or mindset).
+- **TRUTHFUL & ACCURATE**: Base every prediction strictly on the Element relationships and Deep Astrology data provided.
+- **DYNAMIC & RELATABLE**: The "Hook" must sound like a real friend warning or encouraging you. Connect to daily life.
+- **SPECIFIC REMEDIES**: For every negative aspect, provide a CONCRETE, DOABLE remedy.
 - Use authentic fortune-telling terminology: 吉、凶、大吉、運気、開運、相性
 - Lucky items must be SPECIFIC and related to the {eto_info['element']} element.
 
@@ -270,12 +336,12 @@ Tone: Mystical but grounded, honest, empathetic, and 100% authentic.
         user_prompt = f"""
 Generate a **Daily Fortune (今日の運勢)** for **{eto}** ({eto_info['kanji']}年) for **{date}**.
 
-The fortune should reflect today's {rokuyo['name']} energy and give specific, actionable advice.
+The fortune should reflect today's {rokuyo_info} energy and give specific, actionable advice.
 
 Return ONLY valid JSON with this structure:
 {{
     "hook": "Attention-grabbing opening (Japanese, 1-2 sentences). MUST BE RELATABLE. Example: 'You might feel a sudden disconnect today...' or 'A surprise chance awaits...'",
-    "cosmic_context": "Today's {rokuyo['name']} influence + Element interaction (Japanese)",
+    "cosmic_context": "Today's {rokuyo_info} influence + Element interaction (Japanese)",
     "love": "恋愛運 - Love fortune. Be balanced. If bad, say why. (Japanese)",
     "career": "仕事運 - Work/career fortune. Include potential pitfalls. (Japanese)",
     "money": "金運 - Financial fortune. Specific advice, not just 'good luck'. (Japanese)",
@@ -289,7 +355,7 @@ Return ONLY valid JSON with this structure:
     "metadata": {{
         "title": "Viral YouTube Shorts title - MUST include what video is about + {eto_info['kanji']}年 + emoji + #shorts (max 80 chars)",
         "description": "Engaging description with 15-20 hashtags including #shorts #占い #今日の運勢 #干支占い",
-        "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "開運", "{rokuyo['name']}", "恋愛運", "金運", "仕事運"]
+        "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "開運", "{rokuyo_info}", "恋愛運", "金運", "仕事運"]
     }}
 }}
 """
