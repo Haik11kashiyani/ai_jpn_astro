@@ -3,10 +3,10 @@ name: Generate Full Daily Video
 on:
   workflow_dispatch:
     inputs:
-      rashi:
-        description: "Rashi to generate (e.g. Mesh (Aries))"
+      eto:
+        description: "Eto to generate (e.g. Ne (Rat/子))"
         required: true
-        default: "Mesh (Aries)"
+        default: "Ne (Rat/子)"
 
 permissions:
   contents: read
@@ -44,7 +44,7 @@ jobs:
           # Pass --upload if you wanted to upload, but user just wants to SEE the file.
           # We will assume user wants to download it, so we won't auto-upload to YT here unless specified.
           # However, main.py uploads based on --upload flag. We will OMIT it to just generate local file.
-          python main.py --rashi "${{ github.event.inputs.rashi }}" --type shorts
+          python main.py --eto "${{ github.event.inputs.eto }}" --type shorts
 
       - name: Upload Generated Video
         uses: actions/upload-artifact@v4
