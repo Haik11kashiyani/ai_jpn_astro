@@ -432,7 +432,14 @@ Return ONLY valid JSON:
     }}
 }}
 """
-        return self._generate_script(eto, month_year, "Monthly", system_prompt, user_prompt)
+"""
+        script = self._generate_script(eto, month_year, "Monthly", system_prompt, user_prompt)
+        # Post-process to ensure Zodiac Guide is present
+        if script and "metadata" in script:
+            desc = script["metadata"].get("description", "")
+            if "【自分の干支の調べ方】" not in desc:
+                script["metadata"]["description"] = desc + "\n\n" + self._get_zodiac_guide()
+        return script
 
     def generate_yearly_fortune(self, eto: str, year: str, eto_info: dict) -> dict:
         """Generates Yearly Fortune (年間運勢)."""
@@ -473,7 +480,14 @@ Return ONLY valid JSON:
     }}
 }}
 """
-        return self._generate_script(eto, year, "Yearly", system_prompt, user_prompt)
+"""
+        script = self._generate_script(eto, year, "Yearly", system_prompt, user_prompt)
+        # Post-process to ensure Zodiac Guide is present
+        if script and "metadata" in script:
+            desc = script["metadata"].get("description", "")
+            if "【自分の干支の調べ方】" not in desc:
+                script["metadata"]["description"] = desc + "\n\n" + self._get_zodiac_guide()
+        return script
 
     def generate_daily_advice(self, eto: str, date: str, rokuyo: dict, eto_info: dict) -> dict:
         """Generates Daily Advice/Remedy (開運アドバイス)."""
@@ -513,7 +527,14 @@ Return ONLY valid JSON:
     }}
 }}
 """
-        return self._generate_script(eto, date, "Daily_Advice", system_prompt, user_prompt)
+"""
+        script = self._generate_script(eto, date, "Daily_Advice", system_prompt, user_prompt)
+        # Post-process to ensure Zodiac Guide is present
+        if script and "metadata" in script:
+            desc = script["metadata"].get("description", "")
+            if "【自分の干支の調べ方】" not in desc:
+                script["metadata"]["description"] = desc + "\n\n" + self._get_zodiac_guide()
+        return script
 
     def generate_viral_metadata(self, eto: str, date_str: str, period_type: str, script_data, eto_info: dict) -> dict:
         """Generates Viral YouTube Metadata dynamically."""
