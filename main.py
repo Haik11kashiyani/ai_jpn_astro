@@ -564,6 +564,12 @@ def main():
                     
                     if "categoryId" not in meta: meta["categoryId"] = "24"
                     
+                    # Human Simulation: Random Delay before upload (1 to 5 mins)
+                    import random
+                    sleep_sec = random.randint(60, 300)
+                    print(f"   ⏳ Human simulation: Sleeping {sleep_sec}s before upload...")
+                    time.sleep(sleep_sec)
+                    
                     upload_result = uploader.upload_video(path, meta, publish_at=utc_publish_at)
                     if upload_result:
                         upload_success_count += 1

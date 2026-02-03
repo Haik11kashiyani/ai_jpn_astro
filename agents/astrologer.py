@@ -65,6 +65,30 @@ class AstrologerAgent:
             logging.warning(f"⚠️ Deep Astrology Data failed: {e}. Falling back to standard calc.")
             return None
 
+    def _get_trending_tags(self) -> str:
+        """Returns current viral/trending tags for Japan."""
+        # Mix of standard astrology tags + viral/trending broad tags
+        return "#shorts #fyp #viral #japan #trending #占い #運勢 #鑑定 #スピリチュアル #開運 #恋愛 #金運 #引き寄せ #予言 #最新"
+
+    def _get_zodiac_guide(self) -> str:
+        """Returns the How-To-Find-Zodiac text block."""
+        return \"\"\"
+【自分の干支の調べ方】
+生まれた年でわかります！
+🐭 子年 (ねずみ): 1996, 2008, 2020
+🐮 丑年 (うし): 1997, 2009, 2021
+🐯 寅年 (とら): 1998, 2010, 2022
+🐰 卯年 (うさぎ): 1999, 2011, 2023
+🐲 辰年 (たつ): 2000, 2012, 2024
+🐍 巳年 (へび): 2001, 2013, 2025
+🐴 午年 (うま): 2002, 2014, 2026
+🐑 未年 (ひつじ): 2003, 2015, 2027
+🐵 申年 (さる): 2004, 2016, 2028
+🐔 酉年 (とり): 2005, 2017, 2029
+🐶 戌年 (いぬ): 2006, 2018, 2030
+🐗 亥年 (いのしし): 2007, 2019, 2031
+\"\"\"
+
     def __init__(self, api_key: str = None, backup_key: str = None):
         """Initialize with OpenRouter API Keys (primary + backup) + Google AI fallback."""
         self.api_keys = []
@@ -354,12 +378,18 @@ Return ONLY valid JSON with this structure:
     "caution": "What to be careful about today (Japanese). Be sharp and accurate.",
     "metadata": {{
         "title": "Viral YouTube Shorts title - MUST include what video is about + {eto_info['kanji']}年 + emoji + #shorts (max 80 chars)",
-        "description": "Engaging description with 15-20 hashtags including #shorts #占い #今日の運勢 #干支占い",
-        "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "開運", "{rokuyo_info}", "恋愛運", "金運", "仕事運"]
+        "description": "Engaging description with 15-20 hashtags including #shorts #占い #今日の運勢 #干支占い. MUST include the Zodiac Guide at the bottom.",
+        "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "開運", "{rokuyo_info}", "恋愛運", "金運", "仕事運", "fyp", "viral"]
     }}
 }}
 """
-        return self._generate_script(eto, date, "Daily", system_prompt, user_prompt)
+        script = self._generate_script(eto, date, "Daily", system_prompt, user_prompt)
+        # Post-process to ensure Zodiac Guide is present
+        if script and "metadata" in script:
+            desc = script["metadata"].get("description", "")
+            if "【自分の干支の調べ方】" not in desc:
+                script["metadata"]["description"] = desc + "\\n\\n" + self._get_zodiac_guide()
+        return script
 
     def generate_monthly_fortune(self, eto: str, month_year: str, eto_info: dict) -> dict:
         """Generates Monthly Fortune (月間運勢)."""
@@ -518,6 +548,9 @@ DESCRIPTION RULES:
 NO TYPOS in Japanese text.
 """
         
+        viral_tags = self._get_trending_tags()
+        zodiac_guide = self._get_zodiac_guide()
+
         user_prompt = f"""
 Generate YouTube Metadata for a **{period_type}** fortune video.
 **Eto**: {eto} ({eto_info['kanji']}年)
@@ -527,7 +560,7 @@ Generate YouTube Metadata for a **{period_type}** fortune video.
 Return ONLY valid JSON:
 {{
     "title": "Viral title (Japanese + emoji, MUST end with #shorts, max 80 chars)",
-    "description": "Engaging description ending with 15-20 hashtags",
+    "description": "Engaging description ending with 15-20 hashtags. MUST include this Guide at bottom:\\n{zodiac_guide}",
     "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", ...]
 }}
 """
@@ -538,8 +571,13 @@ Return ONLY valid JSON:
             result = result[0] if result else {}
         
         if not isinstance(result, dict) or 'title' not in result:
-            raise Exception("Invalid metadata generated.")
-        
+             # Fallback logic if AI fails
+             return {{
+                 "title": f"🔮 {{eto_info['kanji']}}年の運勢 {{date_str}} #shorts",
+                 "description": f"今日の運勢です！\\n\\n{zodiac_guide}\\n\\n#shorts #占い #干支占い",
+                 "tags": ["shorts", "占い"]
+             }}
+
         # Ensure #shorts is in title
         title = result.get('title', '')
         if '#shorts' not in title.lower():
@@ -548,6 +586,11 @@ Return ONLY valid JSON:
             title = title.rstrip() + " #shorts"
         result['title'] = title
         
+        # Ensure description has guide
+        desc = result.get('description', '')
+        if "【自分の干支の調べ方】" not in desc:
+             result['description'] = desc + "\\n\\n" + zodiac_guide
+
         if 'categoryId' not in result:
             result['categoryId'] = '24'
             

@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   schedule:
     # 3:30 AM JST = 18:30 UTC (previous day) - Early generation for 6 AM upload
-    - cron: "30 18 * * *"
+    - cron: "30 1 * * *"
 
 jobs:
   produce-video:
@@ -40,7 +40,6 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
