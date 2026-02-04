@@ -1,4 +1,4 @@
-ame: Daily Eto Fortune - Batch 3 (Uma, Hitsuji, Saru)
+name: Daily Eto Fortune - Batch 3 (Uma, Hitsuji, Saru)
 on:
   workflow_dispatch:
   schedule:
