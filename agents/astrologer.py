@@ -67,27 +67,28 @@ class AstrologerAgent:
 
     def _get_trending_tags(self) -> str:
         """Returns current viral/trending tags for Japan."""
-        # Mix of standard astrology tags + viral/trending broad tags
-        return "#shorts #fyp #viral #japan #trending #占い #運勢 #鑑定 #スピリチュアル #開運 #恋愛 #金運 #引き寄せ #予言 #最新"
+        # Mix of user-provided viral tags + standard astrology tags
+        return "#子年占い #友引 #今日の運勢 #金運対策 #恋愛運 #開運術 #干支占い #三碧木星 #節分運勢 #水の相性 #運気アップ #占い好きな人と繋がりたい #スピリチュアル #2026年運勢 #救済動画 #shorts #fyp #viral #japan #trending #鑑定 #開運 #引き寄せ #予言 #最新"
 
     def _get_zodiac_guide(self) -> str:
         """Returns the How-To-Find-Zodiac text block."""
-        return \"\"\"
-【自分の干支の調べ方】
-生まれた年でわかります！
-🐭 子年 (ねずみ): 1996, 2008, 2020
-🐮 丑年 (うし): 1997, 2009, 2021
-🐯 寅年 (とら): 1998, 2010, 2022
-🐰 卯年 (うさぎ): 1999, 2011, 2023
-🐲 辰年 (たつ): 2000, 2012, 2024
-🐍 巳年 (へび): 2001, 2013, 2025
-🐴 午年 (うま): 2002, 2014, 2026
-🐑 未年 (ひつじ): 2003, 2015, 2027
-🐵 申年 (さる): 2004, 2016, 2028
-🐔 酉年 (とり): 2005, 2017, 2029
-🐶 戌年 (いぬ): 2006, 2018, 2030
-🐗 亥年 (いのしし): 2007, 2019, 2031
-\"\"\"
+        return """
+【⚠️自分の干支がわからない方へ⚠️】
+生まれた年でチェック！👇
+
+🐭 子年 (ねずみ): 1996, 2008, 2020, 2032
+🐮 丑年 (うし): 1997, 2009, 2021, 2033
+🐯 寅年 (とら): 1998, 2010, 2022, 2034
+🐰 卯年 (うさぎ): 1999, 2011, 2023, 2035
+🐲 辰年 (たつ): 2000, 2012, 2024, 2036
+🐍 巳年 (へび): 2001, 2013, 2025, 2037
+🐴 午年 (うま): 2002, 2014, 2026, 2038
+🐑 未年 (ひつじ): 2003, 2015, 2027, 2039
+🐵 申年 (さる): 2004, 2016, 2028, 2040
+🐔 酉年 (とり): 2005, 2017, 2029, 2041
+🐶 戌年 (いぬ): 2006, 2018, 2030, 2042
+🐗 亥年 (いのしし): 2007, 2019, 2031, 2043
+"""
 
     def __init__(self, api_key: str = None, backup_key: str = None):
         """Initialize with OpenRouter API Keys (primary + backup) + Google AI fallback."""
@@ -378,8 +379,8 @@ Return ONLY valid JSON with this structure:
     "caution": "What to be careful about today (Japanese). Be sharp and accurate.",
     "metadata": {{
         "title": "Viral YouTube Shorts title - MUST include what video is about + {eto_info['kanji']}年 + emoji + #shorts (max 80 chars)",
-        "description": "Engaging description with 15-20 hashtags including #shorts #占い #今日の運勢 #干支占い. MUST include the Zodiac Guide at the bottom.",
-        "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "開運", "{rokuyo_info}", "恋愛運", "金運", "仕事運", "fyp", "viral"]
+        "description": "EXTREMELY DETAILED, VIRAL Description (2000+ chars). Summarize the fortune, include the hook, advice, and a call to action. FILL THE SPACE. Use these tags: {self._get_trending_tags()}. MUST include the 2026 Zodiac Guide.",
+        "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "開運", "{rokuyo_info}", "恋愛運", "金運", "仕事運", "fyp", "viral", "2026年運勢"]
     }}
 }}
 """
@@ -387,7 +388,7 @@ Return ONLY valid JSON with this structure:
         # Post-process to ensure Zodiac Guide is present
         if script and "metadata" in script:
             desc = script["metadata"].get("description", "")
-            if "【自分の干支の調べ方】" not in desc:
+            if "【自分の干支の調べ方】" not in desc and "【⚠️自分の干支がわからない方へ⚠️】" not in desc:
                 script["metadata"]["description"] = desc + "\\n\\n" + self._get_zodiac_guide()
         return script
 
@@ -427,8 +428,8 @@ Return ONLY valid JSON:
     "lucky_color": "Monthly lucky color (Japanese)",
     "metadata": {{
         "title": "Monthly title with 月間運勢 + {eto_info['kanji']}年 + {month_year} + emoji + #shorts",
-        "description": "Monthly description with hashtags",
-        "tags": ["shorts", "月間運勢", "占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル"]
+        "description": "DETAILED Monthly Description (2000+ chars). Deep dive into this month's fate. Use these tags: {self._get_trending_tags()}. MUST include the 2026 Zodiac Guide.",
+        "tags": ["shorts", "月間運勢", "占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "2026年運勢"]
     }}
 }}
 """
@@ -437,8 +438,8 @@ Return ONLY valid JSON:
         # Post-process to ensure Zodiac Guide is present
         if script and "metadata" in script:
             desc = script["metadata"].get("description", "")
-            if "【自分の干支の調べ方】" not in desc:
-                script["metadata"]["description"] = desc + "\n\n" + self._get_zodiac_guide()
+            if "【自分の干支の調べ方】" not in desc and "【⚠️自分の干支がわからない方へ⚠️】" not in desc:
+                script["metadata"]["description"] = desc + "\\n\\n" + self._get_zodiac_guide()
         return script
 
     def generate_yearly_fortune(self, eto: str, year: str, eto_info: dict) -> dict:
@@ -475,8 +476,8 @@ Return ONLY valid JSON:
     "power_word": "Your power word for {year} (Japanese kanji with meaning)",
     "metadata": {{
         "title": "Yearly title with 年間運勢 + {year}年 + {eto_info['kanji']}年 + grand emoji + #shorts",
-        "description": "Yearly description with hashtags",
-        "tags": ["shorts", "年間運勢", "{year}年運勢", "占い", "{eto_info['kanji']}年"]
+        "description": "LEGENDARY Yearly Description (3000+ chars). Predict the entire year in detail. Use these tags: {self._get_trending_tags()}. MUST include the 2026 Zodiac Guide.",
+        "tags": ["shorts", "年間運勢", "{year}年運勢", "占い", "{eto_info['kanji']}年", "2026年運勢"]
     }}
 }}
 """
@@ -485,8 +486,8 @@ Return ONLY valid JSON:
         # Post-process to ensure Zodiac Guide is present
         if script and "metadata" in script:
             desc = script["metadata"].get("description", "")
-            if "【自分の干支の調べ方】" not in desc:
-                script["metadata"]["description"] = desc + "\n\n" + self._get_zodiac_guide()
+            if "【自分の干支の調べ方】" not in desc and "【⚠️自分の干支がわからない方へ⚠️】" not in desc:
+                script["metadata"]["description"] = desc + "\\n\\n" + self._get_zodiac_guide()
         return script
 
     def generate_daily_advice(self, eto: str, date: str, rokuyo: dict, eto_info: dict) -> dict:
@@ -522,8 +523,8 @@ Return ONLY valid JSON:
     "lucky_color": "Color that helps today (Japanese)",
     "metadata": {{
         "title": "Advice title with 開運 + specific topic + {eto_info['kanji']}年 + #shorts",
-        "description": "Advice description with hashtags",
-        "tags": ["shorts", "開運", "アドバイス", "占い", "{eto_info['kanji']}年"]
+        "description": "DETAILED Advice Description (2000+ chars). Explain the ritual and advice in depth. Use these tags: {self._get_trending_tags()}. MUST include the 2026 Zodiac Guide.",
+        "tags": ["shorts", "開運", "アドバイス", "占い", "{eto_info['kanji']}年", "2026年運勢"]
     }}
 }}
 """
@@ -532,8 +533,8 @@ Return ONLY valid JSON:
         # Post-process to ensure Zodiac Guide is present
         if script and "metadata" in script:
             desc = script["metadata"].get("description", "")
-            if "【自分の干支の調べ方】" not in desc:
-                script["metadata"]["description"] = desc + "\n\n" + self._get_zodiac_guide()
+            if "【自分の干支の調べ方】" not in desc and "【⚠️自分の干支がわからない方へ⚠️】" not in desc:
+                script["metadata"]["description"] = desc + "\\n\\n" + self._get_zodiac_guide()
         return script
 
     def generate_viral_metadata(self, eto: str, date_str: str, period_type: str, script_data, eto_info: dict) -> dict:
@@ -561,12 +562,18 @@ TITLE RULES (CRITICAL):
 6. Use curiosity gaps: "〇〇年さん注意！", "〇〇年に大ニュース！"
 
 DESCRIPTION RULES:
-1. First line = Curiosity hook
-2. Include fortune categories covered
-3. End with 15-20 viral hashtags
-4. Always include: #shorts #占い #今日の運勢 #干支占い
-
-NO TYPOS in Japanese text.
+1. MAXIMIZE LENGTH (target 3000-5000 characters). 
+2. STRUCTURE:
+   - 🔥 Catchy Hook (First 2 sentences are crucial)
+   - ⚠️ Important Warning or Key Prediction
+   - 📜 Full Detailed Reading (Love, Work, Money) - Expand on the video content. Write A LOT here.
+   - 💡 Actionable Advice & Rituals
+   - 🍀 Lucky Items/Colors List
+   - 📣 Call to Subscribe & Comment
+   - 🏷️ Hashtag Block (30+ tags)
+   - 🐁 Zodiac Finder Guide (at the very bottom)
+3. Use lots of relevant emojis.
+4. NO TYPOS in Japanese text.
 """
         
         viral_tags = self._get_trending_tags()
@@ -581,8 +588,8 @@ Generate YouTube Metadata for a **{period_type}** fortune video.
 Return ONLY valid JSON:
 {{
     "title": "Viral title (Japanese + emoji, MUST end with #shorts, max 80 chars)",
-    "description": "Engaging description ending with 15-20 hashtags. MUST include this Guide at bottom:\\n{zodiac_guide}",
-    "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", ...]
+    "description": "EXTREMELY LONG, VIRAL DESCRIPTION (3000-5000 chars). Use these tags: {viral_tags}. \n\nCONTENT MUST INCLUDE THIS GUIDE AT THE BOTTOM:\n{zodiac_guide}",
+    "tags": ["shorts", "占い", "今日の運勢", "干支占い", "{eto_info['kanji']}年", "運勢", "スピリチュアル", "2026年運勢", ...]
 }}
 """
         
@@ -593,11 +600,11 @@ Return ONLY valid JSON:
         
         if not isinstance(result, dict) or 'title' not in result:
              # Fallback logic if AI fails
-             return {{
-                 "title": f"🔮 {{eto_info['kanji']}}年の運勢 {{date_str}} #shorts",
-                 "description": f"今日の運勢です！\\n\\n{zodiac_guide}\\n\\n#shorts #占い #干支占い",
+             return {
+                 "title": f"🔮 {eto_info['kanji']}年の運勢 {date_str} #shorts",
+                 "description": f"今日の運勢です！\\n\\n{zodiac_guide}\\n\\n{viral_tags}",
                  "tags": ["shorts", "占い"]
-             }}
+             }
 
         # Ensure #shorts is in title
         title = result.get('title', '')
@@ -609,7 +616,7 @@ Return ONLY valid JSON:
         
         # Ensure description has guide
         desc = result.get('description', '')
-        if "【自分の干支の調べ方】" not in desc:
+        if "【自分の干支の調べ方】" not in desc and "【⚠️自分の干支がわからない方へ⚠️】" not in desc:
              result['description'] = desc + "\\n\\n" + zodiac_guide
 
         if 'categoryId' not in result:

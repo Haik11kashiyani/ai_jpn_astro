@@ -101,35 +101,32 @@ class YouTubeUploader:
             title = title[:76] + "... #shorts"
         
         # --- DESCRIPTION ---
-        # Generate Birth Year Table for Description
-        current_year = datetime.now().year
-        birth_year_table = ""
-        # Simple lookup for last ~2 cycles
-        # Rat is 2020, 2008, 1996...
-        # Calculate years for this specific Eto
-        target_years = []
-        # Base years for 20th/21st century
-        base_years = {
-            "rat": 2020, "ox": 2021, "tiger": 2022, "rabbit": 2023, 
-            "dragon": 2024, "snake": 2025, "horse": 2026, "sheep": 2027, 
-            "monkey": 2028, "rooster": 2029, "dog": 2030, "boar": 2031
-        }
-        
-        base = base_years.get(clean_key.split()[0], 2020)
-        # Adjust base to be in past
-        while base > current_year:
-            base -= 12
-        
-        for i in range(5):
-            target_years.append(str(base - (i * 12)))
-        
-        year_list = ", ".join(sorted(target_years))
+        # Full Zodiac Guide
+        zodiac_guide = """
+【⚠️自分の干支がわからない方へ⚠️】
+生まれた年でチェック！👇
+
+🐭 子年 (ねずみ): 1996, 2008, 2020, 2032
+🐮 丑年 (うし): 1997, 2009, 2021, 2033
+🐯 寅年 (とら): 1998, 2010, 2022, 2034
+🐰 卯年 (うさぎ): 1999, 2011, 2023, 2035
+🐲 辰年 (たつ): 2000, 2012, 2024, 2036
+🐍 巳年 (へび): 2001, 2013, 2025, 2037
+🐴 午年 (うま): 2002, 2014, 2026, 2038
+🐑 未年 (ひつじ): 2003, 2015, 2027, 2039
+🐵 申年 (さる): 2004, 2016, 2028, 2040
+🐔 酉年 (とり): 2005, 2017, 2029, 2041
+🐶 戌年 (いぬ): 2006, 2018, 2030, 2042
+🐗 亥年 (いのしし): 2007, 2019, 2031, 2043
+"""
 
         desc = f"""
 {eto_kanji}年の皆さん、今日の運勢をお届けします！🔮
 
-🎯 あなたは{eto_kanji}年生まれ？(生まれ年チェック):
-{year_list}, ...
+🎯 動画の内容:
+- 今日の総合運勢と開運アドバイス
+- 恋愛運・仕事運・金運の完全予報
+- 今すぐできるラッキーアクション
 
 📍 今日のポイント:
 💕 恋愛運 - パートナーとの関係が深まるチャンス
@@ -141,29 +138,19 @@ class YouTubeUploader:
 
 📺 毎日更新中！フォローして最新運勢をGET！
 
-#shorts #占い #今日の運勢 #干支占い #{eto_kanji}年 #運勢 #スピリチュアル #開運 #ラッキーカラー #恋愛運 #仕事運 #金運 #Japanese #fortune #zodiac #horoscope #viral #trending
+#shorts #占い #今日の運勢 #干支占い #{eto_kanji}年 #運勢 #スピリチュアル #開運 #ラッキーカラー #恋愛運 #仕事運 #金運 #Japanese #fortune #zodiac #horoscope #viral #trending #子年占い #友引 #金運対策 #開運術 #三碧木星 #節分運勢 #水の相性 #運気アップ #占い好きな人と繋がりたい #2026年運勢 #救済動画
+
+{zodiac_guide}
         """.strip()
 
         # --- TAGS (High-Volume Japanese Keywords) ---
         tags = [
-            "shorts",                    # CRITICAL for Shorts algorithm
-            "占い",                      # Fortune telling
-            "今日の運勢",                # Today's fortune
-            "干支占い",                  # Eto zodiac fortune
-            f"{eto_kanji}年",           # Specific animal year
-            "運勢",                      # Fortune/luck
-            "スピリチュアル",            # Spiritual
-            "開運",                      # Fortune improvement
-            "ラッキーカラー",            # Lucky color
-            "恋愛運",                    # Love fortune
-            "仕事運",                    # Work fortune
-            "金運",                      # Money fortune
-            "daily horoscope",           # English for wider reach
-            "Japanese horoscope",
-            "zodiac",
-            "fortune telling",
-            "viral",
-            "trending"
+            "shorts", "占い", "今日の運勢", "干支占い", f"{eto_kanji}年", "運勢", 
+            "スピリチュアル", "開運", "ラッキーカラー", "恋愛運", "仕事運", "金運", 
+            "daily horoscope", "Japanese horoscope", "zodiac", "fortune telling", 
+            "viral", "trending", "子年占い", "友引", "金運対策", "開運術", 
+            "三碧木星", "節分運勢", "水の相性", "運気アップ", "占い好きな人と繋がりたい", 
+            "2026年運勢", "救済動画"
         ]
         
         return {
