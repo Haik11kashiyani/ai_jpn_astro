@@ -1,4 +1,4 @@
-ame: Monthly Eto Fortune (月間運勢)
+name: Monthly Eto Fortune (月間運勢)
 on:
   workflow_dispatch:
     inputs:
