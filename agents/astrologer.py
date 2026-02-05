@@ -433,7 +433,6 @@ Return ONLY valid JSON:
     }}
 }}
 """
-"""
         script = self._generate_script(eto, month_year, "Monthly", system_prompt, user_prompt)
         # Post-process to ensure Zodiac Guide is present
         if script and "metadata" in script:
@@ -481,7 +480,6 @@ Return ONLY valid JSON:
     }}
 }}
 """
-"""
         script = self._generate_script(eto, year, "Yearly", system_prompt, user_prompt)
         # Post-process to ensure Zodiac Guide is present
         if script and "metadata" in script:
@@ -527,7 +525,6 @@ Return ONLY valid JSON:
         "tags": ["shorts", "開運", "アドバイス", "占い", "{eto_info['kanji']}年", "2026年運勢"]
     }}
 }}
-"""
 """
         script = self._generate_script(eto, date, "Daily_Advice", system_prompt, user_prompt)
         # Post-process to ensure Zodiac Guide is present
