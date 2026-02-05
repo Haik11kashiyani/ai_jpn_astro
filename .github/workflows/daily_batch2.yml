@@ -50,6 +50,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: videos-batch2
+          name: videos-batch2-${{ strategy.job-index }}
           path: outputs/*.mp4
           retention-days: 7
