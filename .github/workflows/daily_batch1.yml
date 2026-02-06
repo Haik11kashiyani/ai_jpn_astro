@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   schedule:
     # 2:00 AM JST = 17:00 UTC (previous day) - Early generation for 6 AM upload
-    - cron: "30 1 * * *"
+    - cron: "0 17 * * *"
 
 jobs:
   produce-video:
