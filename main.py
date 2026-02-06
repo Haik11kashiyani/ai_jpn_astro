@@ -526,20 +526,18 @@ def main():
             # Schedule for 6 AM JST *today* (we run at 2-3 AM)
             target_time = now_jst.replace(hour=6, minute=0, second=0, microsecond=0)
             
-            # Only move to next day if we're already past 6 AM
-            if now_jst.hour >= 6:
-                target_time = target_time + timedelta(days=1)
-                
-            print(f"   📅 Scheduled Publish Time: {target_time.strftime('%Y-%m-%d %H:%M JST')} (in {int((target_time - now_jst).total_seconds() / 3600)} hours)")
-
             utc_publish_at = None
-            if target_time:
-                target_utc = target_time.astimezone(pytz.utc)
-                utc_publish_at = target_utc.replace(tzinfo=None)
 
-            if target_time:
+            # Logic: If we are at least 15 mins before 6 AM, schedule for 6 AM.
+            # If we are past that (e.g. manual run at 10 AM), upload IMMEDIATELY.
+            # This prevents "Old News" being scheduled for tomorrow.
+            if now_jst < (target_time - timedelta(minutes=15)):
+                print(f"   📅 Early Run: Scheduling Publish for {target_time.strftime('%Y-%m-%d %H:%M JST')} (in {int((target_time - now_jst).total_seconds() / 60)} mins)")
                 target_utc = target_time.astimezone(pytz.utc)
                 utc_publish_at = target_utc.replace(tzinfo=None)
+            else:
+                 print(f"   ⚠️ Late Run (Past 5:45 AM): Uploading IMMEDIATELY (Public) to ensure Today's Fortune is live.")
+                 utc_publish_at = None
             
             for item in generated_content:
                 path = item["path"]
