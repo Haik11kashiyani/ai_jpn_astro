@@ -31,11 +31,6 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps chromium
 
-      - name: Rate Limit Cooldown (10 Mins)
-        run: |
-          echo "⏳ Waiting 10 minutes to prevent API rate limits..."
-          sleep 600
-
       - name: Run Production Studio
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

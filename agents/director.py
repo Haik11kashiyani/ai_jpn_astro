@@ -37,7 +37,7 @@ class DirectorAgent:
         self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
             genai.configure(api_key=self.google_ai_key)
-            self.google_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            self.google_model = genai.GenerativeModel('gemini-2.0-flash')
         else:
             self.google_model = None
         
@@ -200,9 +200,16 @@ Return ONLY JSON:
                 logging.warning("⚠️ Director: Google AI Primary failed. Falling back to OpenRouter...")
 
         tried_backup = False
+        daily_limit_hit = False
         
-        while True:
+        for _loop in range(2):  # Max 2 loops instead of infinite
+            if daily_limit_hit:
+                break
+                
             for model in self.models:
+                if daily_limit_hit:
+                    break
+                    
                 try:
                     logging.info(f"🎬 Director: Trying model {model}...")
                     response = self.client.chat.completions.create(
@@ -221,17 +228,29 @@ Return ONLY JSON:
                     error_str = str(e)
                     logging.warning(f"⚠️ Director model {model} failed: {e}")
                     
+                    # Detect daily free limit exhaustion
+                    if "free-models-per-day" in error_str.lower() or "Remaining\': \'0\'" in error_str:
+                        logging.warning("🚫 Director: Daily free limit hit. Skipping OpenRouter.")
+                        daily_limit_hit = True
+                        break
+                    
                     if "429" in error_str or "rate limit" in error_str.lower():
                         if not tried_backup and self._switch_to_backup_key():
                             logging.info("🔄 Rate limit hit! Retrying with backup key...")
                             tried_backup = True
                             break
                         else:
-                             logging.info("⏳ Director sleeping 60s for rate limit...")
-                             time.sleep(60)
+                             logging.info("⏳ Director sleeping 30s for rate limit...")
+                             time.sleep(30)
                     continue
             else:
-                break
+                # This 'else' block belongs to the inner 'for model' loop.
+                # If the inner loop completes without a 'break' (meaning all models failed without rate limit/daily limit),
+                # we should break the outer loop as well, or let it continue to the next iteration if _loop < 1.
+                # Given the `daily_limit_hit` and `tried_backup` logic, if we reach here, it means all models failed
+                # and no rate limit/daily limit was hit that would cause a retry or skip.
+                # The outer loop `for _loop in range(2)` will naturally exit after 2 iterations if no success.
+                pass # No explicit break needed here, the outer loop will handle it.
         
         # Ultimate fallback - Japanese themed
         logging.error("❌ All Director models failed. Using Japanese fallback visuals.")

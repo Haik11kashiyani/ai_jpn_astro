@@ -2,8 +2,8 @@ name: Daily Eto Fortune - Batch 4 (Tori, Inu, I)
 on:
   workflow_dispatch:
   schedule:
-    # 3:30 AM JST = 18:30 UTC (previous day) - Early generation for 6 AM upload
-    - cron: "30 18 * * *"
+    # 5:00 AM JST = 20:00 UTC (previous day) - 3 hours after Batch 1
+    - cron: "0 20 * * *"
 
 jobs:
   produce-video:
@@ -30,11 +30,6 @@ jobs:
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml
           pip install -r requirements.txt
           playwright install --with-deps chromium
-
-      - name: Rate Limit Cooldown (10 Mins)
-        run: |
-          echo "⏳ Waiting 10 minutes to prevent API rate limits..."
-          sleep 600
 
       - name: Run Production Studio
         env:

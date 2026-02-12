@@ -109,8 +109,8 @@ class AstrologerAgent:
         self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
             genai.configure(api_key=self.google_ai_key)
-            self.google_model = genai.GenerativeModel('gemini-2.0-flash-exp')
-            logging.info("🌟 Google AI Studio (Gemini) fallback enabled")
+            self.google_model = genai.GenerativeModel('gemini-2.0-flash')
+            logging.info("🌟 Google AI Studio (Gemini 2.0 Flash) primary enabled")
         else:
             self.google_model = None
         
@@ -213,24 +213,35 @@ class AstrologerAgent:
         """Helper to try models in rotation with smart backoff on rate limits."""
         import time
         
-        # --- PRIORITY 1: GOOGLE AI (Unlimited/Free Tier) ---
+        # --- PRIORITY 1: GOOGLE AI (Primary - 1500 req/day free) ---
         if self.google_model:
             logging.info(f"✨ Using Google AI (Primary) for {period_type}...")
-            google_result = self._generate_with_google_ai(system_prompt, user_prompt)
-            if google_result:
-                logging.info("✅ Google AI Generation Successful! Sleeping 5s to respect rate limits...")
-                time.sleep(5) # Rate limit protection
-                return google_result
-            else:
-                logging.warning("⚠️ Google AI Primary failed. Falling back to OpenRouter...")
+            for google_attempt in range(3):
+                google_result = self._generate_with_google_ai(system_prompt, user_prompt)
+                if google_result:
+                    logging.info("✅ Google AI Generation Successful! Sleeping 4s to respect rate limits...")
+                    time.sleep(4)
+                    return google_result
+                else:
+                    logging.warning(f"⚠️ Google AI attempt {google_attempt+1}/3 failed. Retrying in 10s...")
+                    time.sleep(10)
+            logging.warning("⚠️ Google AI Primary exhausted (3 attempts). Falling back to OpenRouter...")
 
         errors = []
+        daily_limit_hit = False
         
-        # Max retries per model type
-        max_loop_retries = 3 
+        # Max retries per model type (reduced from 3)
+        max_loop_retries = 2 
         
         for attempt in range(max_loop_retries):
+            if daily_limit_hit:
+                logging.warning("🚫 OpenRouter daily free limit exhausted. Skipping remaining retries.")
+                break
+                
             for model in self.models:
+                if daily_limit_hit:
+                    break
+                    
                 logging.info(f"🤖 Generating {period_type} fortune using: {model}")
                 try:
                     try:
@@ -260,7 +271,7 @@ class AstrologerAgent:
                     clean_json = raw_content.replace('```json', '').replace('```', '').strip()
                     
                     logging.info("✅ OpenRouter Generation Successful!")
-                    time.sleep(2) # Small break for OpenRouter
+                    time.sleep(2)
                     return json.loads(clean_json)
                     
                 except Exception as e:
@@ -268,23 +279,42 @@ class AstrologerAgent:
                     logging.warning(f"⚠️ Model {model} failed: {e}")
                     errors.append(f"{model}: {error_str}")
                     
-                    # Smart Backoff for Rate Limits
+                    # Detect daily free limit exhaustion — skip ALL OpenRouter retries
+                    if "free-models-per-day" in error_str.lower() or "Remaining\': \'0\'" in error_str:
+                        logging.warning("🚫 Daily free model limit reached! Skipping all OpenRouter retries.")
+                        daily_limit_hit = True
+                        break
+                    
+                    # Rate Limit: Try rotating API key first
                     if "429" in error_str or "rate limit" in error_str.lower():
-                        if "free" in model:
-                            wait_time = 180 # 3 mins for free models
-                        else:
-                            wait_time = 60  # 1 min for others
-                            
-                        logging.info(f"⏳ Rate Limit (429) hit. Sleeping {wait_time}s before next retry...")
+                        # Try next API key before sleeping
+                        if len(self.api_keys) > 1:
+                            old_idx = self.current_key_index
+                            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+                            if self.current_key_index != old_idx:
+                                logging.info(f"🔄 Rotating to API key #{self.current_key_index + 1}...")
+                                self._init_client()
+                                time.sleep(5)
+                                continue
+                        
+                        wait_time = 60  # Reduced from 180s
+                        logging.info(f"⏳ Rate Limit (429) hit. Sleeping {wait_time}s before next model...")
                         time.sleep(wait_time)
                     else:
-                        # Non-rate limit error (e.g. 500, overload)
                         time.sleep(5)
                     
-                    continue # Try next model
-            
-            logging.info(f"🔄 Loop {attempt+1}/{max_loop_retries} finished. Waiting 30s before restarting model loop...")
-            time.sleep(30)
+                    continue
+        
+            logging.info(f"🔄 Loop {attempt+1}/{max_loop_retries} finished. Waiting 15s before restarting...")
+            time.sleep(15)
+        
+        # --- LAST RESORT: Try Google AI one more time ---
+        if self.google_model:
+            logging.info("🆘 Last resort: Trying Google AI one final time...")
+            google_result = self._generate_with_google_ai(system_prompt, user_prompt)
+            if google_result:
+                logging.info("✅ Google AI Last Resort succeeded!")
+                return google_result
         
         raise Exception(f"❌ API Quota Exceeded. Cannot generate content for {eto}.")
 
