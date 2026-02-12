@@ -219,8 +219,8 @@ class AstrologerAgent:
             for google_attempt in range(3):
                 google_result = self._generate_with_google_ai(system_prompt, user_prompt)
                 if google_result:
-                    logging.info("✅ Google AI Generation Successful! Sleeping 4s to respect rate limits...")
-                    time.sleep(4)
+                    logging.info("✅ Google AI Generation Successful! Sleeping 60s to prevent rate limits across batches...")
+                    time.sleep(60)
                     return google_result
                 else:
                     logging.warning(f"⚠️ Google AI attempt {google_attempt+1}/3 failed. Retrying in 10s...")
@@ -313,7 +313,8 @@ class AstrologerAgent:
             logging.info("🆘 Last resort: Trying Google AI one final time...")
             google_result = self._generate_with_google_ai(system_prompt, user_prompt)
             if google_result:
-                logging.info("✅ Google AI Last Resort succeeded!")
+                logging.info("✅ Google AI Last Resort succeeded! Sleeping 60s...")
+                time.sleep(60)
                 return google_result
         
         raise Exception(f"❌ API Quota Exceeded. Cannot generate content for {eto}.")

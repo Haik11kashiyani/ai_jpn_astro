@@ -193,8 +193,8 @@ Return ONLY JSON:
             logging.info("✨ Director: Using Google AI (Primary)...")
             google_result = self._generate_with_google_ai(system_prompt, user_prompt, sections)
             if google_result:
-                logging.info("✅ Director: Google AI Generation Successful! Sleeping 3s...")
-                time.sleep(3)
+                logging.info("✅ Director: Google AI Generation Successful! Sleeping 60s to prevent rate limits...")
+                time.sleep(60)
                 return google_result
             else:
                 logging.warning("⚠️ Director: Google AI Primary failed. Falling back to OpenRouter...")
