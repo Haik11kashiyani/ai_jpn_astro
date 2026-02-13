@@ -419,10 +419,19 @@ def main():
                 "script": daily_script
             })
             
-        except Exception as e:
-            print(f"❌ Daily Video Failed: {e}")
+            
+            # CRITICAL: Do not just print traceback and continue in CI/CD. Fail the job.
+            print(f"❌ Daily Video Failed for {args.eto}: {e}")
             import traceback
             traceback.print_exc()
+            # If we are in a batch job (CI), we should probably fail hard so we know it failed
+            if os.getenv("GITHUB_ACTIONS"):
+                sys.exit(1)
+                
+    # --- FINAL CHECK ---
+    if not generated_content:
+        print("❌ No content generated! Failing build to prevent empty artifacts.")
+        sys.exit(1)
 
     # ==========================
     # MODE 2: DETAILED (MONTHLY/YEARLY)

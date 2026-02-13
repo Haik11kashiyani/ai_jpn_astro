@@ -107,11 +107,20 @@ class AstrologerAgent:
             self.api_keys.append(backup2)
         
         self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
+        if not self.google_ai_key:
+             logging.warning("⚠️ GOOGLE_AI_API_KEY not found in environment variables!")
+             
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
-            genai.configure(api_key=self.google_ai_key)
-            self.google_model = genai.GenerativeModel('gemini-2.0-flash')
-            logging.info("🌟 Google AI Studio (Gemini 2.0 Flash) primary enabled")
+            try:
+                genai.configure(api_key=self.google_ai_key)
+                self.google_model = genai.GenerativeModel('gemini-2.0-flash')
+                logging.info(f"🌟 Google AI Studio (Gemini 2.0 Flash) primary enabled. Key length: {len(self.google_ai_key)}")
+            except Exception as e:
+                logging.error(f"❌ Google AI Init Failed: {e}")
+                self.google_model = None
         else:
+            if not GOOGLE_AI_AVAILABLE:
+                 logging.warning("⚠️ google.generativeai module NOT available (ImportError)!")
             self.google_model = None
         
         if not self.api_keys and not self.google_model:

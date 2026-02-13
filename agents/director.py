@@ -35,10 +35,20 @@ class DirectorAgent:
             self.api_keys.append(backup)
         
         self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
+        if not self.google_ai_key:
+             logging.warning("⚠️ DIRECTOR: GOOGLE_AI_API_KEY not found in environment variables!")
+             
         if self.google_ai_key and GOOGLE_AI_AVAILABLE:
-            genai.configure(api_key=self.google_ai_key)
-            self.google_model = genai.GenerativeModel('gemini-2.0-flash')
+            try:
+                genai.configure(api_key=self.google_ai_key)
+                self.google_model = genai.GenerativeModel('gemini-2.0-flash')
+                logging.info(f"🌟 Director: Google AI (Gemini 2.0 Flash) enabled. Key length: {len(self.google_ai_key)}")
+            except Exception as e:
+                logging.error(f"❌ Director: Google AI Init Failed: {e}")
+                self.google_model = None
         else:
+            if not GOOGLE_AI_AVAILABLE:
+                 logging.warning("⚠️ Director: google.generativeai module NOT available!")
             self.google_model = None
         
         if not self.api_keys and not self.google_model:
