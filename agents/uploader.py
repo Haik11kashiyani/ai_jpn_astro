@@ -207,7 +207,7 @@ class YouTubeUploader:
                 status, response = request.next_chunk()
                 if status:
                     progress = int(status.progress() * 100)
-                    print(f"      📤 Uploading... {progress}%")
+                    print(f"      📤 Uploading... {progress}%", flush=True)
             
             video_id = response.get("id")
             self.logger.info(f"✅ Upload Complete! Video ID: {video_id}")

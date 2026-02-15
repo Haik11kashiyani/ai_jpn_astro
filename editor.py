@@ -276,7 +276,11 @@ class EditorEngine:
         chosen_style = random.choice(anim_styles)
         
         try:
-            frames = asyncio.run(self._render_html_scene(eto_name, text, duration, subtitle_data, theme_override, header_text, period_type, chosen_style))
+            # Enforce a 60-second timeout for each scene render to prevent hanging
+            frames = asyncio.run(asyncio.wait_for(
+                self._render_html_scene(eto_name, text, duration, subtitle_data, theme_override, header_text, period_type, chosen_style),
+                timeout=60.0
+            ))
             
             if not frames:
                 raise Exception("No frames captured")
@@ -284,6 +288,9 @@ class EditorEngine:
             clip = ImageSequenceClip(frames, fps=30)
             return clip
             
+        except asyncio.TimeoutError:
+            logging.error(f"❌ Playwright Render TIMEOUT for scene: {text[:20]}...")
+            return None
         except Exception as e:
             logging.error(f"❌ Playwright Render Error: {e}")
             return None

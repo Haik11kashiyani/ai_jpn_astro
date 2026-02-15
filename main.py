@@ -90,7 +90,7 @@ def produce_video_from_script(agents, eto, title_suffix, script, date_str, theme
     """
     narrator, editor, director = agents['narrator'], agents['editor'], agents['director']
     
-    print(f"\n🎬 STARTING PRODUCTION: {title_suffix} ({header_text})...")
+    print(f"\n🎬 STARTING PRODUCTION: {title_suffix} ({header_text})...", flush=True)
     scenes = []
     
     # Debug: Show what script format we received
@@ -244,7 +244,7 @@ def produce_video_from_script(agents, eto, title_suffix, script, date_str, theme
         subtitle_path = data["subtitle_path"]
         text = data["text"]
         
-        print(f"\n   📍 Rendering Scene: {section.upper()} ({duration:.1f}s)")
+        print(f"\n   📍 Rendering Scene: {section.upper()} ({duration:.1f}s)", flush=True)
         
         # Load subtitles
         subtitle_data = None
@@ -272,7 +272,7 @@ def produce_video_from_script(agents, eto, title_suffix, script, date_str, theme
                 audio_clip = AudioFileClip(audio_path)
                 clip = clip.set_audio(audio_clip)
                 scenes.append(clip)
-                print(f"      ✅ Scene ready.")
+                print(f"      ✅ Scene ready.", flush=True)
             except Exception as e:
                 print(f"      ❌ Audio attach error: {e}")
         else:
@@ -597,8 +597,8 @@ def main():
     if args.upload:
         if upload_success_count == 0:
             print("❌ Start Upload failed for all videos.")
-            # Do NOT raise exception here, so artifact upload can proceed
-            # sys.exit(0) 
+            # Raise exception effectively to fail the GitHub Action
+            sys.exit(1) 
         else:
             print(f"✅ Successfully uploaded {upload_success_count} videos.")
     else:
