@@ -279,7 +279,7 @@ class EditorEngine:
             # Enforce a 60-second timeout for each scene render to prevent hanging
             frames = asyncio.run(asyncio.wait_for(
                 self._render_html_scene(eto_name, text, duration, subtitle_data, theme_override, header_text, period_type, chosen_style),
-                timeout=60.0
+                timeout=180.0
             ))
             
             if not frames:
