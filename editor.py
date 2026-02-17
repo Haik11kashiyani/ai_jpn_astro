@@ -168,7 +168,7 @@ class EditorEngine:
     async def _render_html_scene(self, eto_name, text, duration, subtitle_data, theme_override=None, header_text="", period_type="Daily", anim_style="sakura"):
         """
         Renders the Japanese-themed scene using Playwright.
-        Captures at reduced FPS (10) with JPEG for CI speed, outputs at 30 FPS.
+        Captures screenshots at 30 FPS (full quality PNG).
         """
         frames_dir = f"assets/temp/frames_{hash(text)}"
         os.makedirs(frames_dir, exist_ok=True)
@@ -223,17 +223,11 @@ class EditorEngine:
                f"&c1={grad[0].replace('#', '%23')}&c2={grad[1].replace('#', '%23')}&c3={grad[2].replace('#', '%23')}"
                f"&glow={glow.replace('#', '%23')}&elem={element}&anim={anim_style}")
         
-        # --- PERFORMANCE: Capture at 10 FPS with JPEG to prevent CI timeouts ---
-        # Previously 30 FPS × PNG caused 500s+ renders on GitHub Actions.
-        # 10 FPS JPEG = ~3x fewer frames × ~2x faster per frame = ~6x speedup.
-        # Output video still plays at 30 FPS (each captured frame repeated 3x).
-        capture_fps = 10
-        output_fps = 30
-        total_frames = int(duration * capture_fps)
-        
         logging.info(f"   🌸 Launching Playwright ({anim_style.upper()}) for Japanese scene ({duration}s)...")
         
         frames = []
+        fps = 30
+        total_frames = int(duration * fps)
         
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -242,17 +236,17 @@ class EditorEngine:
             )
             page = await browser.new_page(viewport={"width": 1080, "height": 1920})
             
-            # Use domcontentloaded instead of load to avoid waiting for slow CDN resources
+            # Use domcontentloaded to avoid waiting for slow CDN resources on CI
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
             await page.wait_for_selector("#text-container", timeout=15000) 
             
             # Small delay for GSAP to initialize
             await asyncio.sleep(0.5)
             
-            logging.info(f"   📸 Capturing {total_frames} frames (at {capture_fps} FPS, JPEG)...")
+            logging.info(f"   📸 Capturing {total_frames} frames...")
             
             for i in range(total_frames):
-                current_time = i / capture_fps
+                current_time = i / fps
                 
                 # Update Karaoke Highlight
                 if subtitle_data:
@@ -269,9 +263,9 @@ class EditorEngine:
                 # Update Animations (GSAP seek)
                 await page.evaluate(f"window.seek({current_time})")
                 
-                # Capture Frame as JPEG (much faster than PNG on CI)
-                frame_path = os.path.join(frames_dir, f"frame_{i:04d}.jpg")
-                await page.screenshot(path=frame_path, type='jpeg', quality=85)
+                # Capture Frame (full quality PNG)
+                frame_path = os.path.join(frames_dir, f"frame_{i:04d}.png")
+                await page.screenshot(path=frame_path, type='png')
                 frames.append(frame_path)
             
             await browser.close()
@@ -286,24 +280,18 @@ class EditorEngine:
         chosen_style = random.choice(anim_styles)
         
         try:
-            # 600s timeout - generous safety net. With 10 FPS JPEG capture,
-            # a 30s scene takes ~100s normally. 600s allows for slow CI runners.
-            frames = asyncio.run(asyncio.wait_for(
-                self._render_html_scene(eto_name, text, duration, subtitle_data, theme_override, header_text, period_type, chosen_style),
-                timeout=600.0
-            ))
+            # No timeout — let the render complete naturally (takes 3-5 min on CI, which is fine).
+            # The previous 180s timeout was killing valid renders and causing "No scenes created" errors.
+            frames = asyncio.run(
+                self._render_html_scene(eto_name, text, duration, subtitle_data, theme_override, header_text, period_type, chosen_style)
+            )
             
             if not frames:
                 raise Exception("No frames captured")
-            
-            # Captured at 10 FPS — each frame lasts 0.1s, maintaining correct video timing.
-            # When assemble_final writes at fps=30, moviepy auto-duplicates frames to fill gaps.
-            clip = ImageSequenceClip(frames, fps=10)
+                
+            clip = ImageSequenceClip(frames, fps=30)
             return clip
             
-        except asyncio.TimeoutError:
-            logging.error(f"❌ Playwright Render TIMEOUT for scene: {text[:50]}...")
-            return None
         except Exception as e:
             logging.error(f"❌ Playwright Render Error: {e}")
             return None
