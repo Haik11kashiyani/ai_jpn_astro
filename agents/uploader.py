@@ -234,34 +234,58 @@ class YouTubeUploader:
             "status": status_body
         }
 
-        try:
-            media = MediaFileUpload(file_path, chunksize=1024*1024, resumable=True)
-            request = self.service.videos().insert(
-                part="snippet,status",
-                body=body,
-                media_body=media
-            )
-            
-            response = None
-            while response is None:
-                status, response = request.next_chunk()
-                if status:
-                    progress = int(status.progress() * 100)
-                    print(f"      📤 Uploading... {progress}%", flush=True)
-            
-            video_id = response.get("id")
-            self.logger.info(f"✅ Upload Complete! Video ID: {video_id}")
-            self.logger.info(f"   URL: https://youtube.com/shorts/{video_id}")
-            return True
-            
-        except RefreshError as e:
-            import traceback
-            self.logger.error(f"❌ Upload Failed (Token Expired/Revoked): {e}")
-            self.logger.error("🔑 ACTION REQUIRED: Regenerate your refresh token by running 'python get_youtube_token.py' locally, then update YOUTUBE_REFRESH_TOKEN in GitHub Secrets.")
-            self.logger.error(f"   Full traceback:\n{traceback.format_exc()}")
-            return False
-        except Exception as e:
-            import traceback
-            self.logger.error(f"❌ Upload Failed: {e}")
-            self.logger.error(f"   Full traceback:\n{traceback.format_exc()}")
-            return False
+        # Retry logic for transient errors
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                media = MediaFileUpload(file_path, chunksize=1024*1024, resumable=True)
+                request = self.service.videos().insert(
+                    part="snippet,status",
+                    body=body,
+                    media_body=media
+                )
+                
+                response = None
+                while response is None:
+                    status, response = request.next_chunk()
+                    if status:
+                        progress = int(status.progress() * 100)
+                        print(f"      📤 Uploading... {progress}%", flush=True)
+                
+                video_id = response.get("id")
+                self.logger.info(f"✅ Upload Complete! Video ID: {video_id}")
+                self.logger.info(f"   URL: https://youtube.com/shorts/{video_id}")
+                return True
+
+            except RefreshError as e:
+                import traceback
+                self.logger.error(f"❌ Upload Failed (Token Expired/Revoked): {e}")
+                self.logger.error("🔑 ACTION REQUIRED: Regenerate your refresh token by running 'python get_youtube_token.py' locally, then update YOUTUBE_REFRESH_TOKEN in GitHub Secrets.")
+                self.logger.error(f"   Full traceback:\n{traceback.format_exc()}")
+                return False
+
+            except Exception as e:
+                import traceback
+                error_msg = str(e)
+                
+                # Check for Quota Exceeded
+                if "quotaExceeded" in error_msg:
+                    self.logger.error("❌ CRITICAL: YouTube API Quota Exceeded for today.")
+                    self.logger.error("   Daily Limit is usually 10,000 units. Each video costs 1,600 units.")
+                    self.logger.error("   Solution: Request a quota increase from Google Cloud Console or reduce daily video volume.")
+                    return False
+                
+                # Transient Errors (500, 502, 503) - Retry
+                if "500" in error_msg or "502" in error_msg or "503" in error_msg:
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 5
+                        self.logger.warning(f"⚠️ Transient Error (5xx). Retrying in {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                        import time
+                        time.sleep(wait_time)
+                        continue
+                
+                self.logger.error(f"❌ Upload Failed: {e}")
+                self.logger.error(f"   Full traceback:\n{traceback.format_exc()}")
+                return False
+        
+        return False
