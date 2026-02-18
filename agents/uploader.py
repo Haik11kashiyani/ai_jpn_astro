@@ -4,6 +4,7 @@ import logging
 import random
 from datetime import datetime
 from google.oauth2.credentials import Credentials
+from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -38,8 +39,47 @@ class YouTubeUploader:
             )
             self.service = build('youtube', 'v3', credentials=creds)
             self.logger.info("✅ YouTube Authenticated Successfully.")
+        except RefreshError as e:
+            self.logger.error(f"❌ YouTube Auth Failed (Token Expired/Revoked): {e}")
+            self.logger.error("🔑 ACTION REQUIRED: Regenerate your refresh token by running 'python get_youtube_token.py' locally, then update YOUTUBE_REFRESH_TOKEN in GitHub Secrets.")
+            self.service = None
         except Exception as e:
             self.logger.error(f"❌ YouTube Auth Failed: {e}")
+
+    def validate_token(self) -> bool:
+        """
+        Validates the YouTube token by making a lightweight API call.
+        Call this BEFORE video generation to fail-fast on expired tokens.
+        Returns True if token is valid, False otherwise.
+        """
+        if not self.service:
+            self.logger.error("❌ Token Validation Failed: No YouTube service (credentials missing or invalid).")
+            return False
+        
+        try:
+            # Lightweight call: list the authenticated channel
+            response = self.service.channels().list(
+                part="id",
+                mine=True
+            ).execute()
+            
+            if response.get("items"):
+                self.logger.info(f"✅ YouTube Token Valid. Channel ID: {response['items'][0]['id']}")
+                return True
+            else:
+                self.logger.error("❌ Token Validation Failed: No channel found for this account.")
+                return False
+                
+        except RefreshError as e:
+            self.logger.error(f"❌ YouTube Token EXPIRED or REVOKED: {e}")
+            self.logger.error("🔑 ACTION REQUIRED: Regenerate your refresh token:")
+            self.logger.error("   1. Run locally: python get_youtube_token.py")
+            self.logger.error("   2. Update YOUTUBE_REFRESH_TOKEN in GitHub Secrets")
+            self.service = None
+            return False
+        except Exception as e:
+            self.logger.error(f"❌ Token Validation Failed: {e}")
+            return False
 
     def generate_metadata(self, eto_name: str, date_str: str, period_type: str = "Daily", eto_info: dict = None) -> dict:
         """
@@ -214,6 +254,12 @@ class YouTubeUploader:
             self.logger.info(f"   URL: https://youtube.com/shorts/{video_id}")
             return True
             
+        except RefreshError as e:
+            import traceback
+            self.logger.error(f"❌ Upload Failed (Token Expired/Revoked): {e}")
+            self.logger.error("🔑 ACTION REQUIRED: Regenerate your refresh token by running 'python get_youtube_token.py' locally, then update YOUTUBE_REFRESH_TOKEN in GitHub Secrets.")
+            self.logger.error(f"   Full traceback:\n{traceback.format_exc()}")
+            return False
         except Exception as e:
             import traceback
             self.logger.error(f"❌ Upload Failed: {e}")

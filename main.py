@@ -307,6 +307,21 @@ def main():
         'uploader': YouTubeUploader()
     }
     
+    # --- PRE-FLIGHT: Validate YouTube Token BEFORE expensive video generation ---
+    if args.upload:
+        uploader = agents['uploader']
+        if not uploader.service:
+            print("❌ FATAL: YouTube credentials missing or invalid. Cannot upload.")
+            print("🔑 ACTION REQUIRED: Run 'python get_youtube_token.py' locally and update YOUTUBE_REFRESH_TOKEN in GitHub Secrets.")
+            sys.exit(1)
+        
+        print("🔐 Validating YouTube token before video generation...")
+        if not uploader.validate_token():
+            print("❌ FATAL: YouTube token is expired or revoked. Aborting to save CI time.")
+            print("🔑 ACTION REQUIRED: Run 'python get_youtube_token.py' locally and update YOUTUBE_REFRESH_TOKEN in GitHub Secrets.")
+            sys.exit(1)
+        print("✅ YouTube token validated. Proceeding with video generation.\n")
+    
     # Use JST timezone for correct Japanese date
     jst = pytz.timezone('Asia/Tokyo')
     today = datetime.now(jst)
