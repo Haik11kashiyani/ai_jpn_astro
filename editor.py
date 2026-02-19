@@ -4,8 +4,9 @@ import json
 import asyncio
 import nest_asyncio
 from playwright.async_api import async_playwright
-from moviepy.editor import ImageSequenceClip, AudioFileClip, CompositeAudioClip, vfx, CompositeVideoClip
+from moviepy.editor import ImageSequenceClip, AudioFileClip, CompositeAudioClip, vfx, CompositeVideoClip, VideoFileClip
 import numpy as np
+import shutil
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # Allow nested asyncio loops (required for Playwright in some envs)
@@ -286,11 +287,43 @@ class EditorEngine:
                 self._render_html_scene(eto_name, text, duration, subtitle_data, theme_override, header_text, period_type, chosen_style)
             )
             
+            # Check if frames were captured
             if not frames:
                 raise Exception("No frames captured")
-                
+
+            # --- PER-SCENE RENDERING (Intermediate MP4) ---
+            # compile immediately to free up disk space of raw frames
+            temp_mp4_path = os.path.join("assets/temp", f"scene_{hash(text)}_{random.randint(0, 9999)}.mp4")
+            
+            # Create Clip from frames
             clip = ImageSequenceClip(frames, fps=30)
-            return clip
+            
+            # Write intermediate file (High Quality)
+            # preset=ultrafast to minimize CPU time, high bitrate to keep quality
+            clip.write_videofile(
+                temp_mp4_path, 
+                codec="libx264", 
+                fps=30, 
+                preset="ultrafast", 
+                audio=False, 
+                verbose=False, 
+                logger=None
+            )
+            
+            # Close clip to release file handles
+            clip.close()
+            del clip
+            
+            # IMMEDIATE CLEANUP: Delete raw frames
+            frames_dir = os.path.dirname(frames[0])
+            try:
+                shutil.rmtree(frames_dir)
+                logging.info(f"      🧹 Cleaned up raw frames for scene.")
+            except Exception as e:
+                logging.warning(f"      ⚠️ Could not delete frames: {e}")
+            
+            # Return new VideoFileClip from the MP4
+            return VideoFileClip(temp_mp4_path)
             
         except Exception as e:
             logging.error(f"❌ Playwright Render Error: {e}")
@@ -403,6 +436,38 @@ class EditorEngine:
             preset="medium"
         )
         logging.info(f"   ✅ Video saved: {output_path}")
+
+        # --- FINAL CLEANUP ---
+        # Close all source clips to release locks
+        try:
+            final_video.close()
+            if final_audio: final_audio.close()
+            for s in scenes:
+                try:
+                    s.close()
+                except:
+                    pass
+        except:
+            pass
+            
+        # Delete temp MP4s
+        try:
+            temp_dir = "assets/temp"
+            if os.path.exists(temp_dir):
+                logging.info("🧹 Cleaning up temp intermediate files...")
+                for item in os.listdir(temp_dir):
+                    # Clean up scene mp4s and frame dirs
+                    full_path = os.path.join(temp_dir, item)
+                    if item.endswith(".mp4") or item.startswith("frames_") or item.startswith("scene_"):
+                        if os.path.isdir(full_path):
+                            shutil.rmtree(full_path, ignore_errors=True)
+                        else:
+                            try:
+                                os.remove(full_path)
+                            except: pass
+                logging.info("   ✨ Cleanup complete.")
+        except Exception as e:
+            logging.warning(f"⚠️ Cleanup failed: {e}")
 
 def run_concatenate(clips):
     from moviepy.editor import concatenate_videoclips

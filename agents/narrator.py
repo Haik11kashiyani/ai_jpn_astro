@@ -33,7 +33,8 @@ class NarratorAgent:
         subtitle_path = output_path.replace(".mp3", ".json")
         
         # Retry logic for EdgeTTS
-        for attempt in range(3):
+        # Reduced retries to failover faster if blocked
+        for attempt in range(1):
             try:
                 communicate = edge_tts.Communicate(clean_text, self.voice, rate=self.rate, pitch=self.pitch)
                 subtitles = []
@@ -59,7 +60,7 @@ class NarratorAgent:
                 
             except Exception as e:
                 logging.warning(f"⚠️ EdgeTTS Attempt {attempt+1} Failed: {e}")
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
 
         logging.warning("⚠️ All EdgeTTS attempts failed. Switching to Fallback (gTTS)...")
         if os.path.exists(output_path): os.remove(output_path)
