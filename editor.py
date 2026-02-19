@@ -6,6 +6,7 @@ import nest_asyncio
 from playwright.async_api import async_playwright
 from moviepy.editor import ImageSequenceClip, AudioFileClip, CompositeAudioClip, vfx, CompositeVideoClip
 import numpy as np
+import shutil
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # Allow nested asyncio loops (required for Playwright in some envs)
@@ -263,9 +264,9 @@ class EditorEngine:
                 # Update Animations (GSAP seek)
                 await page.evaluate(f"window.seek({current_time})")
                 
-                # Capture Frame (full quality PNG)
-                frame_path = os.path.join(frames_dir, f"frame_{i:04d}.png")
-                await page.screenshot(path=frame_path, type='png')
+                # Capture Frame (JPEG for Speed/Size)
+                frame_path = os.path.join(frames_dir, f"frame_{i:04d}.jpg")
+                await page.screenshot(path=frame_path, type='jpeg', quality=80)
                 frames.append(frame_path)
             
             await browser.close()
@@ -403,6 +404,18 @@ class EditorEngine:
             preset="medium"
         )
         logging.info(f"   ✅ Video saved: {output_path}")
+
+        # --- CLEANUP TEMP FRAMES ---
+        try:
+            temp_dir = "assets/temp"
+            if os.path.exists(temp_dir):
+                logging.info("🧹 Cleaning up temp frame directories...")
+                for item in os.listdir(temp_dir):
+                    if item.startswith("frames_"):
+                        shutil.rmtree(os.path.join(temp_dir, item), ignore_errors=True)
+                logging.info("   ✨ Cleanup complete.")
+        except Exception as e:
+            logging.warning(f"⚠️ Cleanup failed: {e}")
 
 def run_concatenate(clips):
     from moviepy.editor import concatenate_videoclips
