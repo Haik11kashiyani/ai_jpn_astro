@@ -6,8 +6,11 @@ Run this script locally to get a new refresh token.
 from google_auth_oauthlib.flow import InstalledAppFlow
 import json
 
-# YouTube upload scope
-SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
+# YouTube upload and readonly scopes
+SCOPES = [
+    'https://www.googleapis.com/auth/youtube.upload',
+    'https://www.googleapis.com/auth/youtube.readonly'
+]
 
 def main():
     print("=" * 50)
