@@ -6,6 +6,10 @@ from datetime import datetime
 from google.oauth2.credentials import Credentials
 from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import build
+import ssl
+import http.client
+import socket
+import time
 from googleapiclient.http import MediaFileUpload
 
 class YouTubeUploader:
@@ -235,7 +239,7 @@ class YouTubeUploader:
         }
 
         # Retry logic for transient errors
-        max_retries = 3
+        max_retries = 10
         for attempt in range(max_retries):
             try:
                 media = MediaFileUpload(file_path, chunksize=1024*1024, resumable=True)
@@ -256,6 +260,12 @@ class YouTubeUploader:
                 self.logger.info(f"✅ Upload Complete! Video ID: {video_id}")
                 self.logger.info(f"   URL: https://youtube.com/shorts/{video_id}")
                 return True
+
+            except (ssl.SSLEOFError, http.client.IncompleteRead, socket.timeout, ConnectionResetError, BrokenPipeError) as e:
+                wait_time = (attempt + 1) * 5
+                self.logger.warning(f"⚠️ Network/SSL Error: {e}. Retrying in {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                time.sleep(wait_time)
+                continue
 
             except RefreshError as e:
                 import traceback
@@ -280,7 +290,6 @@ class YouTubeUploader:
                     if attempt < max_retries - 1:
                         wait_time = (attempt + 1) * 5
                         self.logger.warning(f"⚠️ Transient Error (5xx). Retrying in {wait_time}s... (Attempt {attempt+1}/{max_retries})")
-                        import time
                         time.sleep(wait_time)
                         continue
                 
