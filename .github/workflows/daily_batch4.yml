@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
-      fail-fast: true
+      fail-fast: false
       matrix:
         eto: ["Tori (Rooster/酉)", "Inu (Dog/戌)", "I (Boar/亥)"]
 

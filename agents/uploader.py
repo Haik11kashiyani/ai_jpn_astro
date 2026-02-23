@@ -278,12 +278,19 @@ class YouTubeUploader:
                 import traceback
                 error_msg = str(e)
                 
+                # Check for Upload Limit Exceeded (daily video count limit)
+                if "uploadLimitExceeded" in error_msg or "exceeded the number of videos" in error_msg:
+                    self.logger.warning("⚠️ YouTube Upload Limit Reached: Daily video upload count exceeded.")
+                    self.logger.warning("   This is a temporary limit. The video was created successfully.")
+                    self.logger.warning("   The video can be uploaded manually or will be retried next run.")
+                    return "UPLOAD_LIMIT"
+                
                 # Check for Quota Exceeded
                 if "quotaExceeded" in error_msg:
                     self.logger.error("❌ CRITICAL: YouTube API Quota Exceeded for today.")
                     self.logger.error("   Daily Limit is usually 10,000 units. Each video costs 1,600 units.")
                     self.logger.error("   Solution: Request a quota increase from Google Cloud Console or reduce daily video volume.")
-                    return False
+                    return "QUOTA_EXCEEDED"
                 
                 # Transient Errors (500, 502, 503) - Retry
                 if "500" in error_msg or "502" in error_msg or "503" in error_msg:

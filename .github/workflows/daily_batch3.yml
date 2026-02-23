@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
-      fail-fast: true
+      fail-fast: false
       matrix:
         eto: ["Uma (Horse/午)", "Hitsuji (Sheep/未)", "Saru (Monkey/申)"]
 
