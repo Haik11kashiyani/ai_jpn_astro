@@ -366,7 +366,6 @@ def main():
     # Initialize counters early to prevent UnboundLocalError
     upload_success_count = 0
     upload_failure_count = 0
-    upload_limit_count = 0
     
     generated_content = []
     
@@ -595,17 +594,9 @@ def main():
                     time.sleep(sleep_sec)
                     
                     upload_result = uploader.upload_video(path, meta, publish_at=utc_publish_at)
-                    if upload_result is True:
+                    if upload_result:
                         upload_success_count += 1
                         print(f"✅ Upload successful for {item['period']}")
-                    elif upload_result == "UPLOAD_LIMIT":
-                        upload_limit_count += 1
-                        print(f"⚠️ Upload DEFERRED for {item['period']} (YouTube daily upload limit reached)")
-                        print(f"   Video saved at: {path} (available as artifact)")
-                    elif upload_result == "QUOTA_EXCEEDED":
-                        upload_limit_count += 1
-                        print(f"⚠️ Upload DEFERRED for {item['period']} (YouTube API quota exceeded)")
-                        print(f"   Video saved at: {path} (available as artifact)")
                     else:
                         upload_failure_count += 1
                         print(f"❌ Upload FAILED for {item['period']}")
@@ -613,23 +604,18 @@ def main():
                     print(f"❌ Video file not found: {path}")
                     upload_failure_count += 1
             
-            print(f"\n📊 Upload Summary: {upload_success_count} success, {upload_failure_count} failed, {upload_limit_count} deferred (limit)")
+            print(f"\n📊 Upload Summary: {upload_success_count} success, {upload_failure_count} failed")
         else:
             print("❌ Upload skipped: No Auth.")
             # raise Exception("YouTube authentication failed.") # Removed this line
     
     if args.upload:
-        if upload_success_count == 0 and upload_limit_count == 0:
-            print("❌ Upload failed for all videos (non-recoverable errors).")
+        if upload_success_count == 0:
+            print("❌ Start Upload failed for all videos.")
+            # Raise exception effectively to fail the GitHub Action
             sys.exit(1) 
-        elif upload_success_count == 0 and upload_limit_count > 0:
-            print(f"⚠️ All {upload_limit_count} upload(s) deferred due to YouTube limits. Videos created successfully.")
-            print("   Videos are saved as artifacts. They can be uploaded manually or will retry next run.")
-            # Exit 0 - video was created, upload limit is not a code error
         else:
-            print(f"✅ Successfully uploaded {upload_success_count} video(s).")
-            if upload_limit_count > 0:
-                print(f"   ⚠️ {upload_limit_count} upload(s) deferred due to YouTube limits.")
+            print(f"✅ Successfully uploaded {upload_success_count} videos.")
     else:
         print("ℹ️ Upload skipped (dry run).")
 
