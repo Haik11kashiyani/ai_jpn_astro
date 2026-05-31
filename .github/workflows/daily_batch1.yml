@@ -2,15 +2,15 @@ name: Daily Eto Fortune - Batch 1 (Ne, Ushi, Tora)
 on:
   workflow_dispatch:
   schedule:
-    # 2:00 AM JST = 17:00 UTC (previous day) - Early generation for 6 AM upload
-    - cron: "0 17 * * *"
+    # 1:00 PM JST = 04:00 UTC - First batch with 2hr spacing
+    - cron: "0 4 * * *"
 
 jobs:
   produce-video:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
-      fail-fast: true
+      fail-fast: false
       matrix:
         eto: ["Ne (Rat/子)", "Ushi (Ox/丑)", "Tora (Tiger/寅)"]
 
@@ -35,6 +35,9 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          GOOGLE_AI_API_KEY_2: ${{ secrets.GOOGLE_AI_API_KEY_2 }}
+          GOOGLE_AI_API_KEY_3: ${{ secrets.GOOGLE_AI_API_KEY_3 }}
+          OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}

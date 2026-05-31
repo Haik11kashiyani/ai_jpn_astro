@@ -385,6 +385,10 @@ def main():
             else:
                 print("   ⚠️ Deep Data unavailable. Using standard calculation.")
             
+            # Cooldown between API calls to prevent per-minute quota exhaustion
+            print("   ⏳ Inter-call cooldown (45s) to protect API quota...")
+            time.sleep(45)
+            
             daily_script = agents['astrologer'].generate_daily_fortune(
                 args.eto, 
                 date_str, 
@@ -543,25 +547,28 @@ def main():
         uploader = agents['uploader']
         if uploader.service:
             
-            # Scheduling: 6:00 AM JST
+            # Scheduling: 7:00 PM JST (19:00) - Peak astrology viewing time in Japan
+            # Evening prime time (7-9 PM) has the highest YouTube traffic in Japan
+            # and is when astrology/fortune (占い) content consumption peaks.
+            # This maximizes viral potential and early engagement from the algorithm.
             from datetime import timedelta
             jst = pytz.timezone('Asia/Tokyo')
             now_jst = datetime.now(jst)
             
-            # Schedule for 6 AM JST *today* (we run at 2-3 AM)
-            target_time = now_jst.replace(hour=6, minute=0, second=0, microsecond=0)
+            # Schedule for 7 PM JST *today* (we run at 3-6 PM)
+            target_time = now_jst.replace(hour=19, minute=0, second=0, microsecond=0)
             
             utc_publish_at = None
 
-            # Logic: If we are at least 15 mins before 6 AM, schedule for 6 AM.
-            # If we are past that (e.g. manual run at 10 AM), upload IMMEDIATELY.
-            # This prevents "Old News" being scheduled for tomorrow.
+            # Logic: If we are at least 15 mins before 7 PM, schedule for 7 PM.
+            # If we are past that (e.g. manual run at 8 PM), upload IMMEDIATELY.
+            # This prevents stale content being scheduled for tomorrow.
             if now_jst < (target_time - timedelta(minutes=15)):
-                print(f"   📅 Early Run: Scheduling Publish for {target_time.strftime('%Y-%m-%d %H:%M JST')} (in {int((target_time - now_jst).total_seconds() / 60)} mins)")
+                print(f"   📅 Scheduled for Peak Hour: {target_time.strftime('%Y-%m-%d %H:%M JST')} (in {int((target_time - now_jst).total_seconds() / 60)} mins)")
                 target_utc = target_time.astimezone(pytz.utc)
                 utc_publish_at = target_utc.replace(tzinfo=None)
             else:
-                 print(f"   ⚠️ Late Run (Past 5:45 AM): Uploading IMMEDIATELY (Public) to ensure Today's Fortune is live.")
+                 print(f"   ⚠️ Late Run (Past 6:45 PM): Uploading IMMEDIATELY (Public) to ensure Today's Fortune is live.")
                  utc_publish_at = None
             
             for item in generated_content:

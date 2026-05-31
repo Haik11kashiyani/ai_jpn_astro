@@ -1,10 +1,56 @@
 import os
+import re
 import json
+import time
 import logging
 import requests
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
+
+OPENROUTER_GEMINI_FREE = "google/gemini-2.0-flash-exp:free"
+
+# ── Per-key quota tracking (shared across instances in the same process) ──
+_google_exhausted_keys = set()   # indices of daily-exhausted Google AI keys
+_openrouter_daily_exhausted = False
+_last_google_call_ts = 0.0       # timestamp of most recent Google AI call
+
+MIN_GOOGLE_CALL_INTERVAL = 8     # seconds between consecutive Google AI calls
+
+
+def _is_daily_quota_error(error_str: str) -> bool:
+    """Check if the 429 error indicates a DAILY quota exhaustion (not just per-minute)."""
+    return any(x in error_str for x in ("PerDay", "limit: 0", "free_tier"))
+
+
+def _is_rate_limit_error(error_str: str) -> bool:
+    """Check if the error is any kind of rate limit (429)."""
+    return "429" in error_str or "rate limit" in error_str.lower() or "quota exceeded" in error_str.lower() or "Quota exceeded" in error_str
+
+
+def _parse_retry_seconds(error_str: str) -> int:
+    """Parse the retry delay suggested by the API. Returns seconds to wait."""
+    # Try 'retry in Xs' pattern
+    m = re.search(r"retry in (\d+(?:\.\d+)?)s", error_str, re.I)
+    if m:
+        return min(int(float(m.group(1))) + 5, 180)
+    # Try 'seconds: N' pattern from protobuf
+    m = re.search(r'seconds["\s:]+\s*(\d+)', error_str)
+    if m:
+        return min(int(m.group(1)) + 5, 180)
+    return 0
+
+
+def _rate_limit_pre_call():
+    """Enforce minimum spacing between Google AI calls to stay under per-minute limits."""
+    global _last_google_call_ts
+    elapsed = time.time() - _last_google_call_ts
+    if elapsed < MIN_GOOGLE_CALL_INTERVAL:
+        wait = MIN_GOOGLE_CALL_INTERVAL - elapsed
+        logging.info(f"⏱️  Pre-call cooldown: waiting {wait:.1f}s before Google AI call...")
+        time.sleep(wait)
+    _last_google_call_ts = time.time()
+
 
 # Try to import Google AI
 try:
@@ -26,11 +72,31 @@ class AstrologerAgent:
     Acts as 星野先生 (Hoshino-sensei), a renowned Japanese fortune teller.
     """
 
+    def _deep_cache_path(self, date_str: str) -> str:
+        safe = (
+            date_str.replace("年", "-")
+            .replace("月", "-")
+            .replace("日", "")
+            .strip("-")
+        )
+        return os.path.join("cache", "almanac", f"{safe}.json")
+
     def derive_daily_parameters(self, date_str: str) -> dict:
         """
         Uses LLM to derive 100% ACCURATE traditional parameters (Rokuyo, Kyusei, Solar Term).
         Replaces simple arithmetic approximations with 'Deep Astrology' knowledge.
+        Same for all 12 eto signs — cached per date to save API quota.
         """
+        cache_path = self._deep_cache_path(date_str)
+        if os.path.isfile(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+                logging.info(f"📦 Using cached Deep Almanac for {date_str} (no API call)")
+                return cached
+            except (json.JSONDecodeError, OSError) as e:
+                logging.warning(f"⚠️ Almanac cache corrupt, regenerating: {e}")
+
         logging.info(f"🌌 Deep Astrology: Deriving exact parameters for {date_str}...")
         
         system_prompt = """
@@ -59,8 +125,15 @@ class AstrologerAgent:
         """
         
         try:
-             # Use a quick model for data retrieval if possible, otherwise standard
-            return self._generate_script("System", date_str, "Deep_Data", system_prompt, user_prompt)
+            result = self._generate_script(
+                "System", date_str, "Deep_Data", system_prompt, user_prompt
+            )
+            if result:
+                os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False, indent=2)
+                logging.info(f"💾 Cached Deep Almanac → {cache_path}")
+            return result
         except Exception as e:
             logging.warning(f"⚠️ Deep Astrology Data failed: {e}. Falling back to standard calc.")
             return None
@@ -91,7 +164,8 @@ class AstrologerAgent:
 """
 
     def __init__(self, api_key: str = None, backup_key: str = None):
-        """Initialize with OpenRouter API Keys (primary + backup) + Google AI fallback."""
+        """Initialize with OpenRouter API Keys (primary + backup) + multiple Google AI keys."""
+        # ── OpenRouter Keys ──
         self.api_keys = []
         
         primary = api_key or os.getenv("OPENROUTER_API_KEY")
@@ -106,27 +180,34 @@ class AstrologerAgent:
         if backup2:
             self.api_keys.append(backup2)
         
-        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
-        if not self.google_ai_key:
-             logging.warning("⚠️ GOOGLE_AI_API_KEY not found in environment variables!")
-             
-        if self.google_ai_key and GOOGLE_AI_AVAILABLE:
-            try:
-                genai.configure(api_key=self.google_ai_key)
-                self.google_model = genai.GenerativeModel('gemini-2.0-flash')
-                logging.info(f"🌟 Google AI Studio (Gemini 2.0 Flash) primary enabled. Key length: {len(self.google_ai_key)}")
-            except Exception as e:
-                logging.error(f"❌ Google AI Init Failed: {e}")
-                self.google_model = None
-        else:
-            if not GOOGLE_AI_AVAILABLE:
-                 logging.warning("⚠️ google.generativeai module NOT available (ImportError)!")
-            self.google_model = None
+        # ── Google AI Keys (support multiple for quota rotation) ──
+        self.google_ai_keys = []
+        
+        for suffix in ['', '_2', '_3', '_4', '_5']:
+            key = os.getenv(f"GOOGLE_AI_API_KEY{suffix}")
+            if key:
+                self.google_ai_keys.append(key)
+        
+        if not self.google_ai_keys:
+            logging.warning("⚠️ No GOOGLE_AI_API_KEY found in environment variables!")
+        
+        # Initialize Google AI with the first available key
+        self.google_model = None
+        self._current_google_idx = 0
+        
+        if self.google_ai_keys and GOOGLE_AI_AVAILABLE:
+            self._configure_google_key(0)
+            logging.info(f"🌟 Google AI Studio loaded {len(self.google_ai_keys)} key(s). Primary key length: {len(self.google_ai_keys[0])}")
+        elif not GOOGLE_AI_AVAILABLE:
+            logging.warning("⚠️ google.generativeai module NOT available (ImportError)!")
+        
+        # Backward compat
+        self.google_ai_key = self.google_ai_keys[0] if self.google_ai_keys else None
         
         if not self.api_keys and not self.google_model:
             raise ValueError("No API keys found! Need OPENROUTER_API_KEY or GOOGLE_AI_API_KEY")
         
-        logging.info(f"🔑 Loaded {len(self.api_keys)} OpenRouter key(s)")
+        logging.info(f"🔑 Loaded {len(self.api_keys)} OpenRouter key(s), {len(self.google_ai_keys)} Google AI key(s)")
         
         self.current_key_index = 0
         if self.api_keys:
@@ -147,33 +228,80 @@ class AstrologerAgent:
         """Switch to backup key if available."""
         if self.current_key_index < len(self.api_keys) - 1:
             self.current_key_index += 1
-            logging.info(f"🔄 Switching to backup key #{self.current_key_index + 1}")
+            logging.info(f"🔄 Switching to OpenRouter backup key #{self.current_key_index + 1}")
             self._init_client()
             return True
         return False
 
+    def _configure_google_key(self, idx: int):
+        """Configure Google AI with a specific key by index."""
+        try:
+            genai.configure(api_key=self.google_ai_keys[idx])
+            self.google_model = genai.GenerativeModel('gemini-2.0-flash')
+            self._current_google_idx = idx
+            logging.info(f"🔑 Google AI: Configured key #{idx + 1}/{len(self.google_ai_keys)}")
+        except Exception as e:
+            logging.error(f"❌ Google AI Init Failed for key #{idx + 1}: {e}")
+            self.google_model = None
+
+    def _rotate_google_key(self) -> bool:
+        """Rotate to the next non-exhausted Google AI key. Returns True if a key is available."""
+        global _google_exhausted_keys
+        for offset in range(1, len(self.google_ai_keys)):
+            idx = (self._current_google_idx + offset) % len(self.google_ai_keys)
+            if idx not in _google_exhausted_keys:
+                logging.info(f"🔄 Rotating to Google AI key #{idx + 1}...")
+                self._configure_google_key(idx)
+                return True
+        logging.warning("🚫 All Google AI keys exhausted for today.")
+        return False
+
+    def _all_google_keys_exhausted(self) -> bool:
+        """Check if all Google AI keys have been daily-exhausted."""
+        global _google_exhausted_keys
+        if not self.google_ai_keys:
+            return True
+        return len(_google_exhausted_keys) >= len(self.google_ai_keys)
+
     def _generate_with_google_ai(self, system_prompt: str, user_prompt: str) -> dict:
-        """Fallback to Google AI Studio (Gemini) when OpenRouter fails."""
-        if not self.google_model:
+        """Generate via Google AI Studio (Gemini) with pre-call rate limiting."""
+        global _google_exhausted_keys, _last_google_call_ts
+
+        if not self.google_model or self._all_google_keys_exhausted():
             return None
-            
-        logging.info("🌟 Trying Google AI Studio (Gemini) as fallback...")
+
+        # Skip if current key is exhausted (try rotation first)
+        if self._current_google_idx in _google_exhausted_keys:
+            if not self._rotate_google_key():
+                return None
+
+        # Enforce minimum spacing between Google AI calls
+        _rate_limit_pre_call()
+
+        logging.info(f"🌟 Trying Google AI Studio (Key #{self._current_google_idx + 1})...")
         try:
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             response = self.google_model.generate_content(full_prompt)
-            
+
             text = response.text
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0]
             elif "```" in text:
                 text = text.split("```")[1].split("```")[0]
-            
+
             result = json.loads(text.strip())
             logging.info("✅ Google AI Studio succeeded!")
             return result
-            
+
         except Exception as e:
-            logging.error(f"❌ Google AI Studio failed: {e}")
+            err = str(e)
+            logging.error(f"❌ Google AI Studio (Key #{self._current_google_idx + 1}) failed: {e}")
+
+            # Check if this is a daily quota exhaustion → mark this key
+            if "429" in err and _is_daily_quota_error(err):
+                _google_exhausted_keys.add(self._current_google_idx)
+                logging.warning(f"🚫 Google AI Key #{self._current_google_idx + 1} daily quota exhausted.")
+
             return None
 
     def get_best_free_models(self) -> list:
@@ -212,120 +340,161 @@ class AstrologerAgent:
             best_models = [m[1] for m in scored_models[:5]]
             
             logging.info(f"✅ Selected Top Free Models: {best_models}")
-            return best_models if best_models else ["google/gemini-2.0-flash-exp:free"]
-            
+            models = best_models if best_models else [OPENROUTER_GEMINI_FREE]
+            return self._prioritize_openrouter_gemini(models)
+
         except Exception as e:
             logging.error(f"⚠️ Model discovery failed: {e}")
-            return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
+            return [OPENROUTER_GEMINI_FREE, "meta-llama/llama-3.3-70b-instruct:free"]
+
+    def _prioritize_openrouter_gemini(self, models: list) -> list:
+        """Put OpenRouter Gemini free first when direct Google quota is exhausted."""
+        ordered = list(models)
+        if OPENROUTER_GEMINI_FREE in ordered:
+            ordered.remove(OPENROUTER_GEMINI_FREE)
+        if _should_skip_google():
+            ordered.insert(0, OPENROUTER_GEMINI_FREE)
+        return ordered
 
     def _generate_script(self, eto: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
-        """Helper to try models in rotation with smart backoff on rate limits."""
-        import time
-        
-        # --- PRIORITY 1: GOOGLE AI (Primary - 1500 req/day free) ---
-        if self.google_model:
-            logging.info(f"✨ Using Google AI (Primary) for {period_type}...")
-            for google_attempt in range(3):
+        """Helper to try models in rotation with smart backoff and multi-key rotation."""
+        global _google_exhausted_keys, _openrouter_daily_exhausted
+
+        # ── PRIORITY 1: GOOGLE AI (all keys with rotation) ──
+        if self.google_ai_keys and GOOGLE_AI_AVAILABLE and not self._all_google_keys_exhausted():
+            logging.info(f"✨ Using Google AI for {period_type} ({len(self.google_ai_keys)} key(s) available)...")
+
+            # Try each key with exponential backoff
+            max_google_attempts = 5
+            backoff_base = 15  # seconds
+
+            for attempt in range(max_google_attempts):
+                # If current key is exhausted, rotate
+                if self._current_google_idx in _google_exhausted_keys:
+                    if not self._rotate_google_key():
+                        logging.warning("⚠️ All Google AI keys daily-exhausted. Falling back to OpenRouter.")
+                        break
+
                 google_result = self._generate_with_google_ai(system_prompt, user_prompt)
                 if google_result:
-                    logging.info("✅ Google AI Generation Successful! Sleeping 60s to prevent rate limits across batches...")
-                    time.sleep(60)
+                    logging.info(f"✅ Google AI Generation Successful! Post-call cooldown 15s...")
+                    time.sleep(15)
                     return google_result
-                else:
-                    logging.warning(f"⚠️ Google AI attempt {google_attempt+1}/3 failed. Retrying in 10s...")
-                    time.sleep(10)
-            logging.warning("⚠️ Google AI Primary exhausted (3 attempts). Falling back to OpenRouter...")
 
-        errors = []
-        daily_limit_hit = False
-        
-        # Max retries per model type (reduced from 3)
-        max_loop_retries = 2 
-        
-        for attempt in range(max_loop_retries):
-            if daily_limit_hit:
-                logging.warning("🚫 OpenRouter daily free limit exhausted. Skipping remaining retries.")
-                break
-                
-            for model in self.models:
-                if daily_limit_hit:
+                # If current key just got daily-exhausted, immediately try rotating
+                if self._current_google_idx in _google_exhausted_keys:
+                    if self._rotate_google_key():
+                        logging.info(f"🔄 Switched to Google AI Key #{self._current_google_idx + 1}, retrying immediately...")
+                        continue  # Don't wait — try the new key right away
+                    else:
+                        break  # All keys exhausted
+
+                # Per-minute rate limit — wait with exponential backoff
+                wait = min(backoff_base * (2 ** attempt), 120)
+                logging.warning(
+                    f"⚠️ Google AI attempt {attempt + 1}/{max_google_attempts} failed. "
+                    f"Waiting {wait}s (exponential backoff)..."
+                )
+                time.sleep(wait)
+
+            if not self._all_google_keys_exhausted():
+                logging.warning(f"⚠️ Google AI exhausted ({max_google_attempts} attempts). Falling back to OpenRouter...")
+        elif self._all_google_keys_exhausted():
+            logging.info(f"⏭️ Skipping Google AI for {period_type} (all keys exhausted). Using OpenRouter...")
+            self.models = self._prioritize_openrouter_gemini(self.models)
+
+        # ── PRIORITY 2: OPENROUTER (multiple models + key rotation) ──
+        if _openrouter_daily_exhausted:
+            logging.warning("🚫 OpenRouter daily free limit already exhausted. Skipping.")
+        elif self.client:
+            errors = []
+            max_loop_retries = 2
+
+            for attempt in range(max_loop_retries):
+                if _openrouter_daily_exhausted:
                     break
-                    
-                logging.info(f"🤖 Generating {period_type} fortune using: {model}")
-                try:
+
+                for model in self.models:
+                    if _openrouter_daily_exhausted:
+                        break
+
+                    logging.info(f"🤖 Generating {period_type} fortune using: {model}")
                     try:
-                        response = self.client.chat.completions.create(
-                            model=model,
-                            messages=[
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt}
-                            ],
-                            response_format={"type": "json_object"}
-                        )
-                        raw_content = response.choices[0].message.content
-                    except Exception as e:
-                        if "400" in str(e):
-                            logging.warning(f"⚠️ Model {model} rejected JSON mode. Retrying with Plain Text...")
+                        try:
                             response = self.client.chat.completions.create(
                                 model=model,
                                 messages=[
-                                    {"role": "system", "content": system_prompt + "\\n\\nIMPORTANT: Return ONLY valid JSON. No markdown."},
+                                    {"role": "system", "content": system_prompt},
                                     {"role": "user", "content": user_prompt}
-                                ]
+                                ],
+                                response_format={"type": "json_object"}
                             )
                             raw_content = response.choices[0].message.content
-                        else:
-                            raise e
+                        except Exception as e:
+                            if "400" in str(e):
+                                logging.warning(f"⚠️ Model {model} rejected JSON mode. Retrying with Plain Text...")
+                                response = self.client.chat.completions.create(
+                                    model=model,
+                                    messages=[
+                                        {"role": "system", "content": system_prompt + "\\n\\nIMPORTANT: Return ONLY valid JSON. No markdown."},
+                                        {"role": "user", "content": user_prompt}
+                                    ]
+                                )
+                                raw_content = response.choices[0].message.content
+                            else:
+                                raise e
 
-                    clean_json = raw_content.replace('```json', '').replace('```', '').strip()
-                    
-                    logging.info("✅ OpenRouter Generation Successful!")
-                    time.sleep(2)
-                    return json.loads(clean_json)
-                    
-                except Exception as e:
-                    error_str = str(e)
-                    logging.warning(f"⚠️ Model {model} failed: {e}")
-                    errors.append(f"{model}: {error_str}")
-                    
-                    # Detect daily free limit exhaustion — skip ALL OpenRouter retries
-                    if "free-models-per-day" in error_str.lower() or "Remaining\': \'0\'" in error_str:
-                        logging.warning("🚫 Daily free model limit reached! Skipping all OpenRouter retries.")
-                        daily_limit_hit = True
-                        break
-                    
-                    # Rate Limit: Try rotating API key first
-                    if "429" in error_str or "rate limit" in error_str.lower():
-                        # Try next API key before sleeping
-                        if len(self.api_keys) > 1:
-                            old_idx = self.current_key_index
-                            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
-                            if self.current_key_index != old_idx:
-                                logging.info(f"🔄 Rotating to API key #{self.current_key_index + 1}...")
-                                self._init_client()
-                                time.sleep(5)
-                                continue
-                        
-                        wait_time = 60  # Reduced from 180s
-                        logging.info(f"⏳ Rate Limit (429) hit. Sleeping {wait_time}s before next model...")
-                        time.sleep(wait_time)
-                    else:
-                        time.sleep(5)
-                    
-                    continue
-        
-            logging.info(f"🔄 Loop {attempt+1}/{max_loop_retries} finished. Waiting 15s before restarting...")
-            time.sleep(15)
-        
-        # --- LAST RESORT: Try Google AI one more time ---
-        if self.google_model:
-            logging.info("🆘 Last resort: Trying Google AI one final time...")
+                        clean_json = raw_content.replace('```json', '').replace('```', '').strip()
+
+                        logging.info("✅ OpenRouter Generation Successful!")
+                        time.sleep(3)
+                        return json.loads(clean_json)
+
+                    except Exception as e:
+                        error_str = str(e)
+                        logging.warning(f"⚠️ Model {model} failed: {e}")
+                        errors.append(f"{model}: {error_str}")
+
+                        # Detect daily free limit exhaustion → skip ALL OpenRouter retries
+                        if "free-models-per-day" in error_str.lower() or "Remaining\': \'0\'" in error_str:
+                            logging.warning("🚫 Daily free model limit reached! Skipping all OpenRouter retries.")
+                            _openrouter_daily_exhausted = True
+                            break
+
+                        # Rate Limit: Try rotating API key first
+                        if _is_rate_limit_error(error_str):
+                            if len(self.api_keys) > 1:
+                                old_idx = self.current_key_index
+                                self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+                                if self.current_key_index != old_idx:
+                                    logging.info(f"🔄 Rotating to OpenRouter key #{self.current_key_index + 1}...")
+                                    self._init_client()
+                                    time.sleep(5)
+                                    continue
+
+                            wait_time = max(_parse_retry_seconds(error_str), 45)
+                            logging.info(
+                                f"⏳ Rate Limit (429) hit. Sleeping {wait_time}s before next model..."
+                            )
+                            time.sleep(wait_time)
+                        else:
+                            time.sleep(5)
+
+                        continue
+
+                logging.info(f"🔄 Loop {attempt+1}/{max_loop_retries} finished. Waiting 20s before restarting...")
+                time.sleep(20)
+
+        # ── LAST RESORT: Try Google AI one final time (wait for per-minute reset) ──
+        if self.google_ai_keys and GOOGLE_AI_AVAILABLE and not self._all_google_keys_exhausted():
+            logging.info("🆘 Last resort: Waiting 60s then trying Google AI one final time...")
+            time.sleep(60)  # Wait for per-minute quota to potentially reset
             google_result = self._generate_with_google_ai(system_prompt, user_prompt)
             if google_result:
-                logging.info("✅ Google AI Last Resort succeeded! Sleeping 60s...")
-                time.sleep(60)
+                logging.info("✅ Google AI Last Resort succeeded!")
+                time.sleep(15)
                 return google_result
-        
+
         raise Exception(f"❌ API Quota Exceeded. Cannot generate content for {eto}.")
 
     def generate_daily_fortune(self, eto: str, date: str, rokuyo: dict, season: str, eto_info: dict, deep_data: dict = None) -> dict:
