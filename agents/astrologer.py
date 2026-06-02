@@ -352,9 +352,34 @@ class AstrologerAgent:
         ordered = list(models)
         if OPENROUTER_GEMINI_FREE in ordered:
             ordered.remove(OPENROUTER_GEMINI_FREE)
-        if _should_skip_google():
+        if self._all_google_keys_exhausted():
             ordered.insert(0, OPENROUTER_GEMINI_FREE)
         return ordered
+
+    def _fallback_daily_script(self, eto: str, date: str, rokuyo: dict, eto_info: dict) -> dict:
+        """Offline template when all LLM APIs are exhausted — keeps the pipeline running."""
+        kanji = eto_info.get("kanji", "子")
+        animal = eto_info.get("animal", "")
+        logging.warning(f"📝 Offline fallback daily script for {eto} (all APIs exhausted)")
+        return {
+            "hook": f"{kanji}年の皆さん、{date}は{rokuyo['name']}（{rokuyo.get('romaji', '')}）の日です。今日の流れを大切に。",
+            "cosmic_context": f"六曜{rokuyo['name']}：{rokuyo.get('meaning', '')}。{eto_info.get('element', '')}の気を意識しましょう。",
+            "love": "恋愛は素直な言葉が吉。相手のペースを尊重すると良いでしょう。",
+            "career": "仕事は着実に進める一日。急がず確認を重ねてください。",
+            "money": "金運は堅実な出費が吉。衝動買いは控えめに。",
+            "health": "休息と水分補給を。無理な運動は避けましょう。",
+            "remedy": f"{rokuyo.get('best', '静かな時間')}を意識し、{eto_info.get('element', '五行')}のバランスを整えてください。",
+            "lucky_item": "お守りまたはハーブティー",
+            "lucky_color": "青",
+            "lucky_direction": "東",
+            "lucky_number": "7",
+            "caution": f"{rokuyo.get('avoid', '無理な急ぎ')}に注意。",
+            "metadata": {
+                "title": f"🔮 {kanji}年({animal}) 今日の運勢 {date} #shorts",
+                "description": f"{eto} {date} 今日の干支占い。\n\n{self._get_zodiac_guide()}",
+                "tags": ["shorts", "占い", "今日の運勢", "干支占い", f"{kanji}年", "運勢"],
+            },
+        }
 
     def _generate_script(self, eto: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
         """Helper to try models in rotation with smart backoff and multi-key rotation."""
@@ -593,7 +618,13 @@ Return ONLY valid JSON with this structure:
     }}
 }}
 """
-        script = self._generate_script(eto, date, "Daily", system_prompt, user_prompt)
+        try:
+            script = self._generate_script(eto, date, "Daily", system_prompt, user_prompt)
+        except Exception as e:
+            if "Quota Exceeded" in str(e) or "429" in str(e):
+                script = self._fallback_daily_script(eto, date, rokuyo, eto_info)
+            else:
+                raise
         # Post-process to ensure Zodiac Guide is present
         if script and "metadata" in script:
             desc = script["metadata"].get("description", "")

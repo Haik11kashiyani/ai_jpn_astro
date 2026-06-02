@@ -5,6 +5,10 @@ on:
     # 1:00 PM JST = 04:00 UTC - First batch with 2hr spacing
     - cron: "0 4 * * *"
 
+concurrency:
+  group: daily-eto-production
+  cancel-in-progress: false
+
 jobs:
   produce-video:
     runs-on: ubuntu-latest
@@ -17,6 +21,17 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Get JST date for almanac cache
+        id: jst_date
+        run: echo "date=$(TZ=Asia/Tokyo date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Restore Deep Almanac cache
+        uses: actions/cache@v4
+        with:
+          path: cache/almanac
+          key: deep-almanac-${{ steps.jst_date.outputs.date }}
+          restore-keys: deep-almanac-
 
       - name: Set up Python
         uses: actions/setup-python@v4
