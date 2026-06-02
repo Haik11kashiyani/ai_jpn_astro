@@ -8,6 +8,7 @@ venv/
 .venv/
 
 # Project Specific
+cache/almanac/
 outputs/
 assets/temp/
 assets/footage/

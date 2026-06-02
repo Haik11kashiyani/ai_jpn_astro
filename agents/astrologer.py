@@ -8,48 +8,28 @@ from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 
+from agents import gemini_limiter as gl
+
 OPENROUTER_GEMINI_FREE = "google/gemini-2.0-flash-exp:free"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_ONLY = os.getenv("GEMINI_ONLY", "1").strip() in ("1", "true", "yes")
+GEMINI_SINGLE_KEY = os.getenv("GEMINI_SINGLE_KEY", "1").strip() in ("1", "true", "yes")
 
 # ── Per-key quota tracking (shared across instances in the same process) ──
-_google_exhausted_keys = set()   # indices of daily-exhausted Google AI keys
+_google_exhausted_keys = set()
 _openrouter_daily_exhausted = False
-_last_google_call_ts = 0.0       # timestamp of most recent Google AI call
-
-MIN_GOOGLE_CALL_INTERVAL = 8     # seconds between consecutive Google AI calls
-
-
-def _is_daily_quota_error(error_str: str) -> bool:
-    """Check if the 429 error indicates a DAILY quota exhaustion (not just per-minute)."""
-    return any(x in error_str for x in ("PerDay", "limit: 0", "free_tier"))
-
-
-def _is_rate_limit_error(error_str: str) -> bool:
-    """Check if the error is any kind of rate limit (429)."""
-    return "429" in error_str or "rate limit" in error_str.lower() or "quota exceeded" in error_str.lower() or "Quota exceeded" in error_str
+_almanac_was_cached = False
 
 
 def _parse_retry_seconds(error_str: str) -> int:
-    """Parse the retry delay suggested by the API. Returns seconds to wait."""
-    # Try 'retry in Xs' pattern
+    """Parse retry delay for OpenRouter 429 responses."""
     m = re.search(r"retry in (\d+(?:\.\d+)?)s", error_str, re.I)
     if m:
         return min(int(float(m.group(1))) + 5, 180)
-    # Try 'seconds: N' pattern from protobuf
     m = re.search(r'seconds["\s:]+\s*(\d+)', error_str)
     if m:
         return min(int(m.group(1)) + 5, 180)
     return 0
-
-
-def _rate_limit_pre_call():
-    """Enforce minimum spacing between Google AI calls to stay under per-minute limits."""
-    global _last_google_call_ts
-    elapsed = time.time() - _last_google_call_ts
-    if elapsed < MIN_GOOGLE_CALL_INTERVAL:
-        wait = MIN_GOOGLE_CALL_INTERVAL - elapsed
-        logging.info(f"⏱️  Pre-call cooldown: waiting {wait:.1f}s before Google AI call...")
-        time.sleep(wait)
-    _last_google_call_ts = time.time()
 
 
 # Try to import Google AI
@@ -87,16 +67,19 @@ class AstrologerAgent:
         Replaces simple arithmetic approximations with 'Deep Astrology' knowledge.
         Same for all 12 eto signs — cached per date to save API quota.
         """
+        global _almanac_was_cached
         cache_path = self._deep_cache_path(date_str)
         if os.path.isfile(cache_path):
             try:
                 with open(cache_path, "r", encoding="utf-8") as f:
                     cached = json.load(f)
                 logging.info(f"📦 Using cached Deep Almanac for {date_str} (no API call)")
+                _almanac_was_cached = True
                 return cached
             except (json.JSONDecodeError, OSError) as e:
                 logging.warning(f"⚠️ Almanac cache corrupt, regenerating: {e}")
 
+        _almanac_was_cached = False
         logging.info(f"🌌 Deep Astrology: Deriving exact parameters for {date_str}...")
         
         system_prompt = """
@@ -135,8 +118,29 @@ class AstrologerAgent:
                 logging.info(f"💾 Cached Deep Almanac → {cache_path}")
             return result
         except Exception as e:
-            logging.warning(f"⚠️ Deep Astrology Data failed: {e}. Falling back to standard calc.")
+            logging.warning(f"⚠️ Deep Astrology Data failed: {e}. Using local almanac.")
+            return self._build_local_almanac(date_str)
+
+    @property
+    def almanac_was_cached(self) -> bool:
+        """True if derive_daily_parameters used disk cache (no Gemini call)."""
+        return _almanac_was_cached
+
+    def _build_local_almanac(self, date_str: str) -> dict:
+        """Offline almanac when Gemini is unavailable — zero API calls."""
+        m = re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日", date_str)
+        if not m:
             return None
+        d = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        rokuyo_names = ["先勝", "友引", "先負", "仏滅", "大安", "赤口"]
+        name = rokuyo_names[(d.month + d.day) % 6]
+        logging.info(f"📅 Local almanac for {date_str} (rokuyo≈{name})")
+        return {
+            "rokuyo": {"name": name, "reading": "", "meaning": "暦に基づく概算"},
+            "kyusei": {"name": "—", "element": "—"},
+            "sekki": None,
+            "choku": {"name": "—", "meaning": "—"},
+        }
 
     def _get_trending_tags(self) -> str:
         """Returns current viral/trending tags for Japan."""
@@ -180,16 +184,22 @@ class AstrologerAgent:
         if backup2:
             self.api_keys.append(backup2)
         
-        # ── Google AI Keys (support multiple for quota rotation) ──
+        # ── Google AI: one working free key by default (avoids splitting quota) ──
         self.google_ai_keys = []
-        
-        for suffix in ['', '_2', '_3', '_4', '_5']:
-            key = os.getenv(f"GOOGLE_AI_API_KEY{suffix}")
-            if key:
-                self.google_ai_keys.append(key)
-        
+        primary_google = os.getenv("GOOGLE_AI_API_KEY")
+        if primary_google:
+            self.google_ai_keys.append(primary_google)
+
+        if not GEMINI_SINGLE_KEY:
+            for suffix in ("_2", "_3", "_4", "_5"):
+                key = os.getenv(f"GOOGLE_AI_API_KEY{suffix}")
+                if key:
+                    self.google_ai_keys.append(key)
+
         if not self.google_ai_keys:
             logging.warning("⚠️ No GOOGLE_AI_API_KEY found in environment variables!")
+        elif GEMINI_SINGLE_KEY:
+            logging.info("🔑 Gemini: using single GOOGLE_AI_API_KEY (GEMINI_SINGLE_KEY=1)")
         
         # Initialize Google AI with the first available key
         self.google_model = None
@@ -197,7 +207,10 @@ class AstrologerAgent:
         
         if self.google_ai_keys and GOOGLE_AI_AVAILABLE:
             self._configure_google_key(0)
-            logging.info(f"🌟 Google AI Studio loaded {len(self.google_ai_keys)} key(s). Primary key length: {len(self.google_ai_keys[0])}")
+            logging.info(
+                f"🌟 Gemini {GEMINI_MODEL} ready ({len(self.google_ai_keys)} key(s), "
+                f"interval={gl.MIN_CALL_INTERVAL}s, post-cooldown={gl.POST_SUCCESS_COOLDOWN}s)"
+            )
         elif not GOOGLE_AI_AVAILABLE:
             logging.warning("⚠️ google.generativeai module NOT available (ImportError)!")
         
@@ -210,12 +223,15 @@ class AstrologerAgent:
         logging.info(f"🔑 Loaded {len(self.api_keys)} OpenRouter key(s), {len(self.google_ai_keys)} Google AI key(s)")
         
         self.current_key_index = 0
-        if self.api_keys:
+        if self.api_keys and not GEMINI_ONLY:
             self._init_client()
             self.models = self.get_best_free_models()
+            logging.info("🔀 OpenRouter enabled as fallback (GEMINI_ONLY=0)")
         else:
             self.client = None
             self.models = []
+            if GEMINI_ONLY and self.api_keys:
+                logging.info("ℹ️ GEMINI_ONLY=1 — OpenRouter disabled; using Gemini + offline fallback only.")
 
     def _init_client(self):
         """Initialize OpenAI client with current key."""
@@ -237,7 +253,7 @@ class AstrologerAgent:
         """Configure Google AI with a specific key by index."""
         try:
             genai.configure(api_key=self.google_ai_keys[idx])
-            self.google_model = genai.GenerativeModel('gemini-2.0-flash')
+            self.google_model = genai.GenerativeModel(GEMINI_MODEL)
             self._current_google_idx = idx
             logging.info(f"🔑 Google AI: Configured key #{idx + 1}/{len(self.google_ai_keys)}")
         except Exception as e:
@@ -264,22 +280,21 @@ class AstrologerAgent:
         return len(_google_exhausted_keys) >= len(self.google_ai_keys)
 
     def _generate_with_google_ai(self, system_prompt: str, user_prompt: str) -> dict:
-        """Generate via Google AI Studio (Gemini) with pre-call rate limiting."""
-        global _google_exhausted_keys, _last_google_call_ts
+        """Generate via Google AI Studio (Gemini) with shared rate limiting."""
+        global _google_exhausted_keys
 
         if not self.google_model or self._all_google_keys_exhausted():
             return None
 
-        # Skip if current key is exhausted (try rotation first)
         if self._current_google_idx in _google_exhausted_keys:
             if not self._rotate_google_key():
                 return None
 
-        # Enforce minimum spacing between Google AI calls
-        _rate_limit_pre_call()
+        gl.wait_before_call(f"Gemini/{GEMINI_MODEL}")
 
-        logging.info(f"🌟 Trying Google AI Studio (Key #{self._current_google_idx + 1})...")
+        logging.info(f"🌟 Gemini API call (key #{self._current_google_idx + 1}, model={GEMINI_MODEL})...")
         try:
+            gl.record_call()
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             response = self.google_model.generate_content(full_prompt)
 
@@ -290,17 +305,22 @@ class AstrologerAgent:
                 text = text.split("```")[1].split("```")[0]
 
             result = json.loads(text.strip())
-            logging.info("✅ Google AI Studio succeeded!")
+            logging.info("✅ Gemini succeeded!")
+            gl.cooldown_after_success("Gemini")
             return result
 
         except Exception as e:
             err = str(e)
-            logging.error(f"❌ Google AI Studio (Key #{self._current_google_idx + 1}) failed: {e}")
+            logging.error(f"❌ Gemini failed: {e}")
 
-            # Check if this is a daily quota exhaustion → mark this key
-            if "429" in err and _is_daily_quota_error(err):
-                _google_exhausted_keys.add(self._current_google_idx)
-                logging.warning(f"🚫 Google AI Key #{self._current_google_idx + 1} daily quota exhausted.")
+            if gl.is_rate_limit_error(err):
+                if gl.is_daily_quota_error(err):
+                    _google_exhausted_keys.add(self._current_google_idx)
+                    logging.warning(
+                        f"🚫 Gemini key #{self._current_google_idx + 1} daily quota exhausted."
+                    )
+                else:
+                    gl.wait_on_rate_limit(err, "Gemini")
 
             return None
 
@@ -385,51 +405,44 @@ class AstrologerAgent:
         """Helper to try models in rotation with smart backoff and multi-key rotation."""
         global _google_exhausted_keys, _openrouter_daily_exhausted
 
-        # ── PRIORITY 1: GOOGLE AI (all keys with rotation) ──
+        # ── PRIORITY 1: GEMINI (single free key, rate-limited) ──
         if self.google_ai_keys and GOOGLE_AI_AVAILABLE and not self._all_google_keys_exhausted():
-            logging.info(f"✨ Using Google AI for {period_type} ({len(self.google_ai_keys)} key(s) available)...")
+            logging.info(f"✨ Using Gemini for {period_type}...")
 
-            # Try each key with exponential backoff
-            max_google_attempts = 5
-            backoff_base = 15  # seconds
-
+            max_google_attempts = 4
             for attempt in range(max_google_attempts):
-                # If current key is exhausted, rotate
                 if self._current_google_idx in _google_exhausted_keys:
                     if not self._rotate_google_key():
-                        logging.warning("⚠️ All Google AI keys daily-exhausted. Falling back to OpenRouter.")
                         break
 
                 google_result = self._generate_with_google_ai(system_prompt, user_prompt)
                 if google_result:
-                    logging.info(f"✅ Google AI Generation Successful! Post-call cooldown 15s...")
-                    time.sleep(15)
                     return google_result
 
-                # If current key just got daily-exhausted, immediately try rotating
                 if self._current_google_idx in _google_exhausted_keys:
                     if self._rotate_google_key():
-                        logging.info(f"🔄 Switched to Google AI Key #{self._current_google_idx + 1}, retrying immediately...")
-                        continue  # Don't wait — try the new key right away
-                    else:
-                        break  # All keys exhausted
+                        continue
+                    break
 
-                # Per-minute rate limit — wait with exponential backoff
-                wait = min(backoff_base * (2 ** attempt), 120)
-                logging.warning(
-                    f"⚠️ Google AI attempt {attempt + 1}/{max_google_attempts} failed. "
-                    f"Waiting {wait}s (exponential backoff)..."
-                )
-                time.sleep(wait)
+                if attempt < max_google_attempts - 1:
+                    wait = 20 * (attempt + 1)
+                    logging.warning(
+                        f"⚠️ Gemini attempt {attempt + 1}/{max_google_attempts} failed. "
+                        f"Waiting {wait}s..."
+                    )
+                    time.sleep(wait)
 
-            if not self._all_google_keys_exhausted():
-                logging.warning(f"⚠️ Google AI exhausted ({max_google_attempts} attempts). Falling back to OpenRouter...")
+            if self._all_google_keys_exhausted():
+                logging.warning("⚠️ Gemini daily quota exhausted.")
+            elif not GEMINI_ONLY:
+                logging.warning("⚠️ Gemini failed. Trying OpenRouter...")
         elif self._all_google_keys_exhausted():
-            logging.info(f"⏭️ Skipping Google AI for {period_type} (all keys exhausted). Using OpenRouter...")
-            self.models = self._prioritize_openrouter_gemini(self.models)
+            logging.info(f"⏭️ Skipping Gemini for {period_type} (quota exhausted).")
 
-        # ── PRIORITY 2: OPENROUTER (multiple models + key rotation) ──
-        if _openrouter_daily_exhausted:
+        # ── PRIORITY 2: OPENROUTER (optional; off by default to save free quota) ──
+        if GEMINI_ONLY:
+            logging.info("ℹ️ GEMINI_ONLY=1 — skipping OpenRouter.")
+        elif _openrouter_daily_exhausted:
             logging.warning("🚫 OpenRouter daily free limit already exhausted. Skipping.")
         elif self.client:
             errors = []
@@ -487,7 +500,7 @@ class AstrologerAgent:
                             break
 
                         # Rate Limit: Try rotating API key first
-                        if _is_rate_limit_error(error_str):
+                        if gl.is_rate_limit_error(error_str):
                             if len(self.api_keys) > 1:
                                 old_idx = self.current_key_index
                                 self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
@@ -510,14 +523,17 @@ class AstrologerAgent:
                 logging.info(f"🔄 Loop {attempt+1}/{max_loop_retries} finished. Waiting 20s before restarting...")
                 time.sleep(20)
 
-        # ── LAST RESORT: Try Google AI one final time (wait for per-minute reset) ──
-        if self.google_ai_keys and GOOGLE_AI_AVAILABLE and not self._all_google_keys_exhausted():
-            logging.info("🆘 Last resort: Waiting 60s then trying Google AI one final time...")
-            time.sleep(60)  # Wait for per-minute quota to potentially reset
+        # ── LAST RESORT: one more Gemini try after a long pause ──
+        if (
+            not GEMINI_ONLY
+            and self.google_ai_keys
+            and GOOGLE_AI_AVAILABLE
+            and not self._all_google_keys_exhausted()
+        ):
+            logging.info("🆘 Last resort: waiting 90s then one final Gemini attempt...")
+            time.sleep(90)
             google_result = self._generate_with_google_ai(system_prompt, user_prompt)
             if google_result:
-                logging.info("✅ Google AI Last Resort succeeded!")
-                time.sleep(15)
                 return google_result
 
         raise Exception(f"❌ API Quota Exceeded. Cannot generate content for {eto}.")

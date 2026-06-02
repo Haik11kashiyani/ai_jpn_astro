@@ -105,10 +105,7 @@ def produce_video_from_script(agents, eto, title_suffix, script, date_str, theme
         else:
             script = {"content": " ".join(str(s) for s in script)}
     
-    # Use Director to analyze script and get mood for music
-    print(f"   ⏳ Cooling down (Safety Pause)...")
-    time.sleep(5)
-    print(f"   🎬 Director analyzing content mood...")
+    print(f"   🎬 Director analyzing content mood (local, no API)...")
     screenplay = director.create_screenplay(script)
     content_mood = screenplay.get("mood", "zen") if isinstance(screenplay, dict) else "zen"
     print(f"   🎵 Detected mood: {content_mood}")
@@ -385,9 +382,15 @@ def main():
             else:
                 print("   ⚠️ Deep Data unavailable. Using standard calculation.")
             
-            # Cooldown between API calls to prevent per-minute quota exhaustion
-            print("   ⏳ Inter-call cooldown (45s) to protect API quota...")
-            time.sleep(45)
+            # Cooldown between Gemini calls (skip if almanac was cached — no API used)
+            from agents import gemini_limiter as gl
+            if not agents["astrologer"].almanac_was_cached:
+                print(
+                    f"   ⏳ Inter-step cooldown ({int(gl.BETWEEN_STEP_COOLDOWN)}s) for Gemini rate limits..."
+                )
+                gl.wait_between_pipeline_steps("almanac→daily")
+            else:
+                print("   ⏭️ Almanac from cache — skipping inter-step cooldown.")
             
             daily_script = agents['astrologer'].generate_daily_fortune(
                 args.eto, 
