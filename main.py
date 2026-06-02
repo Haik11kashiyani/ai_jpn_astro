@@ -380,7 +380,7 @@ def main():
             if deep_data:
                 print("   ✅ Deep Data Retrieved: ", json.dumps(deep_data, ensure_ascii=False)[:100] + "...")
             else:
-                print("   ⚠️ Deep Data unavailable. Using standard calculation.")
+                print("   ⚠️ Deep Data unavailable (using date/rokuyo from calendar only).")
             
             # Cooldown between Gemini calls (skip if almanac was cached — no API used)
             from agents import gemini_limiter as gl
@@ -400,6 +400,13 @@ def main():
                 eto_info,
                 deep_data=deep_data
             )
+
+            required = ("hook", "love", "career", "money", "health")
+            missing = [k for k in required if not daily_script.get(k)]
+            if missing:
+                raise ValueError(
+                    f"AI script incomplete (missing {missing}) — will not upload non-daily content."
+                )
             
             print("   ⏳ Script generated. Cooling down 5s...")
             time.sleep(5)

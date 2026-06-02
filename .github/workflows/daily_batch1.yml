@@ -53,8 +53,10 @@ jobs:
       - name: Run Production Studio
         env:
           GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_SINGLE_KEY: "1"
-          GEMINI_ONLY: "1"
+          GEMINI_ONLY: "0"
+          REQUIRE_DEEP_ALMANAC: "1"
           GEMINI_MODEL: gemini-2.0-flash
           GEMINI_MIN_CALL_INTERVAL: "15"
           GEMINI_POST_CALL_COOLDOWN: "40"

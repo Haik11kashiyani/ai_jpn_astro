@@ -12,8 +12,10 @@ from agents import gemini_limiter as gl
 
 OPENROUTER_GEMINI_FREE = "google/gemini-2.0-flash-exp:free"
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-GEMINI_ONLY = os.getenv("GEMINI_ONLY", "1").strip() in ("1", "true", "yes")
+# OpenRouter fallback stays ON so we never upload generic/static fortune text.
+GEMINI_ONLY = os.getenv("GEMINI_ONLY", "0").strip() in ("1", "true", "yes")
 GEMINI_SINGLE_KEY = os.getenv("GEMINI_SINGLE_KEY", "1").strip() in ("1", "true", "yes")
+REQUIRE_DEEP_ALMANAC = os.getenv("REQUIRE_DEEP_ALMANAC", "1").strip() in ("1", "true", "yes")
 
 # ── Per-key quota tracking (shared across instances in the same process) ──
 _google_exhausted_keys = set()
@@ -107,40 +109,39 @@ class AstrologerAgent:
         }}
         """
         
-        try:
-            result = self._generate_script(
-                "System", date_str, "Deep_Data", system_prompt, user_prompt
-            )
-            if result:
-                os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-                with open(cache_path, "w", encoding="utf-8") as f:
-                    json.dump(result, f, ensure_ascii=False, indent=2)
-                logging.info(f"💾 Cached Deep Almanac → {cache_path}")
-            return result
-        except Exception as e:
-            logging.warning(f"⚠️ Deep Astrology Data failed: {e}. Using local almanac.")
-            return self._build_local_almanac(date_str)
+        last_error = None
+        max_attempts = int(os.getenv("DEEP_ALMANAC_RETRIES", "5"))
+        for attempt in range(max_attempts):
+            try:
+                result = self._generate_script(
+                    "System", date_str, "Deep_Data", system_prompt, user_prompt
+                )
+                if result:
+                    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+                    with open(cache_path, "w", encoding="utf-8") as f:
+                        json.dump(result, f, ensure_ascii=False, indent=2)
+                    logging.info(f"💾 Cached Deep Almanac → {cache_path}")
+                    return result
+            except Exception as e:
+                last_error = e
+                if attempt < max_attempts - 1:
+                    wait = 45 * (attempt + 1)
+                    logging.warning(
+                        f"⚠️ Deep Almanac attempt {attempt + 1}/{max_attempts} failed: {e}. "
+                        f"Retrying in {wait}s..."
+                    )
+                    time.sleep(wait)
+
+        msg = f"❌ Deep Almanac could not be generated for {date_str} (accurate calendar data required)."
+        if REQUIRE_DEEP_ALMANAC:
+            raise Exception(f"{msg} Last error: {last_error}")
+        logging.error(f"{msg} Continuing without deep data (REQUIRE_DEEP_ALMANAC=0).")
+        return None
 
     @property
     def almanac_was_cached(self) -> bool:
         """True if derive_daily_parameters used disk cache (no Gemini call)."""
         return _almanac_was_cached
-
-    def _build_local_almanac(self, date_str: str) -> dict:
-        """Offline almanac when Gemini is unavailable — zero API calls."""
-        m = re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日", date_str)
-        if not m:
-            return None
-        d = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        rokuyo_names = ["先勝", "友引", "先負", "仏滅", "大安", "赤口"]
-        name = rokuyo_names[(d.month + d.day) % 6]
-        logging.info(f"📅 Local almanac for {date_str} (rokuyo≈{name})")
-        return {
-            "rokuyo": {"name": name, "reading": "", "meaning": "暦に基づく概算"},
-            "kyusei": {"name": "—", "element": "—"},
-            "sekki": None,
-            "choku": {"name": "—", "meaning": "—"},
-        }
 
     def _get_trending_tags(self) -> str:
         """Returns current viral/trending tags for Japan."""
@@ -231,7 +232,7 @@ class AstrologerAgent:
             self.client = None
             self.models = []
             if GEMINI_ONLY and self.api_keys:
-                logging.info("ℹ️ GEMINI_ONLY=1 — OpenRouter disabled; using Gemini + offline fallback only.")
+                logging.info("ℹ️ GEMINI_ONLY=1 — OpenRouter disabled (Gemini only).")
 
     def _init_client(self):
         """Initialize OpenAI client with current key."""
@@ -376,31 +377,6 @@ class AstrologerAgent:
             ordered.insert(0, OPENROUTER_GEMINI_FREE)
         return ordered
 
-    def _fallback_daily_script(self, eto: str, date: str, rokuyo: dict, eto_info: dict) -> dict:
-        """Offline template when all LLM APIs are exhausted — keeps the pipeline running."""
-        kanji = eto_info.get("kanji", "子")
-        animal = eto_info.get("animal", "")
-        logging.warning(f"📝 Offline fallback daily script for {eto} (all APIs exhausted)")
-        return {
-            "hook": f"{kanji}年の皆さん、{date}は{rokuyo['name']}（{rokuyo.get('romaji', '')}）の日です。今日の流れを大切に。",
-            "cosmic_context": f"六曜{rokuyo['name']}：{rokuyo.get('meaning', '')}。{eto_info.get('element', '')}の気を意識しましょう。",
-            "love": "恋愛は素直な言葉が吉。相手のペースを尊重すると良いでしょう。",
-            "career": "仕事は着実に進める一日。急がず確認を重ねてください。",
-            "money": "金運は堅実な出費が吉。衝動買いは控えめに。",
-            "health": "休息と水分補給を。無理な運動は避けましょう。",
-            "remedy": f"{rokuyo.get('best', '静かな時間')}を意識し、{eto_info.get('element', '五行')}のバランスを整えてください。",
-            "lucky_item": "お守りまたはハーブティー",
-            "lucky_color": "青",
-            "lucky_direction": "東",
-            "lucky_number": "7",
-            "caution": f"{rokuyo.get('avoid', '無理な急ぎ')}に注意。",
-            "metadata": {
-                "title": f"🔮 {kanji}年({animal}) 今日の運勢 {date} #shorts",
-                "description": f"{eto} {date} 今日の干支占い。\n\n{self._get_zodiac_guide()}",
-                "tags": ["shorts", "占い", "今日の運勢", "干支占い", f"{kanji}年", "運勢"],
-            },
-        }
-
     def _generate_script(self, eto: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
         """Helper to try models in rotation with smart backoff and multi-key rotation."""
         global _google_exhausted_keys, _openrouter_daily_exhausted
@@ -409,7 +385,7 @@ class AstrologerAgent:
         if self.google_ai_keys and GOOGLE_AI_AVAILABLE and not self._all_google_keys_exhausted():
             logging.info(f"✨ Using Gemini for {period_type}...")
 
-            max_google_attempts = 4
+            max_google_attempts = int(os.getenv("GEMINI_MAX_ATTEMPTS", "6"))
             for attempt in range(max_google_attempts):
                 if self._current_google_idx in _google_exhausted_keys:
                     if not self._rotate_google_key():
@@ -536,7 +512,10 @@ class AstrologerAgent:
             if google_result:
                 return google_result
 
-        raise Exception(f"❌ API Quota Exceeded. Cannot generate content for {eto}.")
+        raise Exception(
+            f"❌ All AI providers failed for {eto} ({period_type}). "
+            f"No upload — refusing to use static/placeholder fortune content."
+        )
 
     def generate_daily_fortune(self, eto: str, date: str, rokuyo: dict, season: str, eto_info: dict, deep_data: dict = None) -> dict:
         """Generates Daily Japanese Fortune (今日の運勢)."""
@@ -634,13 +613,7 @@ Return ONLY valid JSON with this structure:
     }}
 }}
 """
-        try:
-            script = self._generate_script(eto, date, "Daily", system_prompt, user_prompt)
-        except Exception as e:
-            if "Quota Exceeded" in str(e) or "429" in str(e):
-                script = self._fallback_daily_script(eto, date, rokuyo, eto_info)
-            else:
-                raise
+        script = self._generate_script(eto, date, "Daily", system_prompt, user_prompt)
         # Post-process to ensure Zodiac Guide is present
         if script and "metadata" in script:
             desc = script["metadata"].get("description", "")
